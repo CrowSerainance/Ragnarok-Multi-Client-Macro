@@ -49,7 +49,7 @@ public sealed class MacroExecutor
                 ? binding.TriggerHotkey
                 : binding.InputKey;
 
-            if (!_inputDispatcher.SendInputKey(liveWindow, inputKeyToSend, out string inputStatus))
+            if (!_inputDispatcher.SendInputKey(liveWindow, inputKeyToSend, config, out string inputStatus))
             {
                 return $"{profile.DisplayName}: key send failed - {inputStatus}";
             }
@@ -60,56 +60,29 @@ public sealed class MacroExecutor
             }
 
             var trace = profile.TraceSequences.FirstOrDefault(x => x.Id == binding.TraceSequenceId);
-            var points = ResolvePoints(profile.ActionPolygon, binding, trace);
-            if (points.Count == 0)
+            var points = trace?.Points.Select(point => point.Clone()).ToArray() ?? Array.Empty<NormalizedPoint>();
+            if (points.Length == 0)
             {
-                string reason = binding.ExecutionMode == ExecutionMode.RandomPolygon
-                    ? "polygon is not ready"
-                    : "trace has no recorded points";
-                return $"{profile.DisplayName}: {binding.Name} - key sent ({HotkeyText.Normalize(inputKeyToSend)}), no click executed because {reason}.";
+                return $"{profile.DisplayName}: {binding.Name} - key sent ({HotkeyText.Normalize(inputKeyToSend)}), no click executed because the selected sequence has no points.";
             }
 
-            for (int i = 0; i < points.Count; i++)
+            for (int i = 0; i < points.Length; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var pixel = CoordinateTranslator.ToPixel(points[i], liveWindow.ClientWidth, liveWindow.ClientHeight);
                 _inputDispatcher.SendClick(liveWindow, pixel.X, pixel.Y, config);
 
-                if (i < points.Count - 1 && binding.InterClickDelayMs > 0)
+                if (i < points.Length - 1 && binding.InterClickDelayMs > 0)
                 {
                     await Task.Delay(binding.InterClickDelayMs, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            return $"{profile.DisplayName}: {binding.Name} executed ({points.Count} click{(points.Count == 1 ? string.Empty : "s")}).";
+            return $"{profile.DisplayName}: {binding.Name} executed ({points.Length} click{(points.Length == 1 ? string.Empty : "s")}).";
         }
         finally
         {
             _executionGate.Release();
         }
-    }
-
-    private static IReadOnlyList<NormalizedPoint> ResolvePoints(ActionPolygon polygon, MacroBinding binding, TraceSequence? trace)
-    {
-        if (binding.ExecutionMode == ExecutionMode.TraceSequence)
-        {
-            return trace?.Points.Count > 0
-                ? trace.Points.Select(point => point.Clone()).ToArray()
-                : Array.Empty<NormalizedPoint>();
-        }
-
-        if (!polygon.IsReady)
-        {
-            return Array.Empty<NormalizedPoint>();
-        }
-
-        int count = ClickExecutionPlanner.ResolveClickCount(binding, trace);
-        var points = new List<NormalizedPoint>(count);
-        for (int i = 0; i < count; i++)
-        {
-            points.Add(PolygonMath.TrySampleRandomPoint(polygon, Random.Shared) ?? PolygonMath.GetCentroid(polygon.Vertices));
-        }
-
-        return points;
     }
 }

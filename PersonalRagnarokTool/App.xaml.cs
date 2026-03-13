@@ -23,7 +23,6 @@ public partial class App : System.Windows.Application
         var bindingService = new ClientBindingService(discoveryService, attachmentService);
         var previewService = new ClientPreviewService(bindingService);
         var hotkeyService = new GlobalHotkeyService();
-        var traceRecorder = new TraceRecorder(bindingService);
         var macroExecutor = new MacroExecutor(bindingService, new BackgroundInputDispatcher(memoryService, attachmentService), new HotkeyRouter());
 
         _mainViewModel = new MainViewModel(
@@ -33,7 +32,6 @@ public partial class App : System.Windows.Application
             bindingService,
             previewService,
             hotkeyService,
-            traceRecorder,
             macroExecutor);
 
         var window = new MainWindow(_mainViewModel, hotkeyService);

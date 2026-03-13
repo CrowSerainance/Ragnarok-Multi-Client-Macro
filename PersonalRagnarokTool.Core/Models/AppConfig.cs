@@ -35,5 +35,13 @@ public sealed class AppConfig : ObservableObject
         set => SetProperty(ref _mousePosYAddress, value);
     }
 
+    private InputMethod _inputMethod = InputMethod.PostMessage;
+
+    public InputMethod InputMethod
+    {
+        get => _inputMethod;
+        set => SetProperty(ref _inputMethod, value);
+    }
+
     public ObservableCollection<ClientProfile> ClientProfiles { get; set; } = new();
 }

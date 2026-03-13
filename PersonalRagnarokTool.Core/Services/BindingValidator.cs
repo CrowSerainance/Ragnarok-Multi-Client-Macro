@@ -42,6 +42,11 @@ public static class BindingValidator
                 binding.ClientProfileId = profile.Id;
                 binding.TriggerHotkey = HotkeyText.Normalize(binding.TriggerHotkey);
                 binding.InputKey = HotkeyText.Normalize(binding.InputKey);
+                binding.ExecutionMode = ExecutionMode.TraceSequence;
+                if (binding.TraceSequenceId is null && profile.TraceSequences.Count > 0)
+                {
+                    binding.TraceSequenceId = profile.TraceSequences[0].Id;
+                }
             }
 
             foreach (var trace in profile.TraceSequences)

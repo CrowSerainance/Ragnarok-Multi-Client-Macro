@@ -10,7 +10,7 @@ public sealed class MacroBinding : ObservableObject
     private bool _isEnabled = true;
     private string _triggerHotkey = "F1";
     private string _inputKey = "F1";
-    private ExecutionMode _executionMode = ExecutionMode.RandomPolygon;
+    private ExecutionMode _executionMode = ExecutionMode.TraceSequence;
     private string? _traceSequenceId;
     private int _postInputDelayMs = 120;
     private int _interClickDelayMs = 80;

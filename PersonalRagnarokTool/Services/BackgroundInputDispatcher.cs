@@ -5,10 +5,19 @@ using PersonalRagnarokTool.Core.Services;
 namespace PersonalRagnarokTool.Services;
 
 /// <summary>
-/// Aggressive input dispatcher using hardware-level SendInput with a focus-flash technique.
-/// Briefly steals focus to the game window (~50ms), fires SendInput, then restores the
-/// original foreground window. This bypasses PostMessage filtering by Gepard/GameGuard.
-/// Memory writes for mouse position are also performed when the attachment is live.
+/// Dispatches input to game windows.
+/// 
+/// PostMessage mode: sends WM_KEYDOWN/WM_KEYUP and WM_LBUTTONDOWN/WM_LBUTTONUP
+/// directly to the target window handle. No focus change. Works on background windows.
+/// Does not depend on ProcessAttachmentService for key/click delivery.
+/// 
+/// SendInput mode (fallback): focus-flash technique for Gepard/GameGuard-protected
+/// servers that filter PostMessage. Requires brief foreground steal.
+/// 
+/// Memory-backed mouse coordinate writes are opportunistic: performed when the
+/// global ProcessAttachmentService happens to be attached to the same process as
+/// the target window. Skipped silently otherwise — PostMessage click coordinates
+/// in lParam are sufficient for most RO clients.
 /// </summary>
 public sealed class BackgroundInputDispatcher
 {
@@ -23,13 +32,15 @@ public sealed class BackgroundInputDispatcher
         _attachmentService = attachmentService;
     }
 
-    public bool SendInputKey(ClientWindowRef window, string? inputKey, out string status)
+    // ═══════════════════════════════════════════════════════════
+    //  Public API
+    // ═══════════════════════════════════════════════════════════
+
+    public bool SendInputKey(ClientWindowRef window, string? inputKey, AppConfig config, out string status)
     {
         status = string.Empty;
         if (string.IsNullOrWhiteSpace(inputKey))
-        {
             return true;
-        }
 
         if (!VirtualKeyMap.TryGetVirtualKey(inputKey, out int virtualKey))
         {
@@ -44,31 +55,17 @@ public sealed class BackgroundInputDispatcher
             return false;
         }
 
-        ushort scanCode = (ushort)NativeMethods.MapVirtualKeyW((uint)virtualKey, 0);
-
-        // Hardware-level key press via SendInput inside a focus-flash.
-        FlashFocusAndExecute(gameHwnd, () =>
+        if (config.InputMethod == InputMethod.PostMessage)
         {
-            var inputs = new NativeMethods.INPUT[2];
+            PostMessageKey(gameHwnd, virtualKey);
+            status = $"{HotkeyText.Normalize(inputKey)} sent via PostMessage to 0x{gameHwnd.ToInt64():X}.";
+        }
+        else
+        {
+            SendInputKeyViaFocusFlash(gameHwnd, virtualKey);
+            status = $"{HotkeyText.Normalize(inputKey)} sent via SendInput to 0x{gameHwnd.ToInt64():X}.";
+        }
 
-            // Key down
-            inputs[0].type = NativeMethods.INPUT_KEYBOARD;
-            inputs[0].u.ki.wVk = (ushort)virtualKey;
-            inputs[0].u.ki.wScan = scanCode;
-            inputs[0].u.ki.dwFlags = NativeMethods.KEYEVENTF_KEYDOWN;
-
-            // Key up
-            inputs[1].type = NativeMethods.INPUT_KEYBOARD;
-            inputs[1].u.ki.wVk = (ushort)virtualKey;
-            inputs[1].u.ki.wScan = scanCode;
-            inputs[1].u.ki.dwFlags = NativeMethods.KEYEVENTF_KEYUP;
-
-            NativeMethods.SendInput(1, new[] { inputs[0] }, Marshal.SizeOf<NativeMethods.INPUT>());
-            Thread.Sleep(_rng.Next(25, 55));
-            NativeMethods.SendInput(1, new[] { inputs[1] }, Marshal.SizeOf<NativeMethods.INPUT>());
-        });
-
-        status = $"{HotkeyText.Normalize(inputKey)} sent via SendInput on 0x{gameHwnd.ToInt64():X}.";
         return true;
     }
 
@@ -78,7 +75,8 @@ public sealed class BackgroundInputDispatcher
         if (gameHwnd == IntPtr.Zero || !NativeMethods.IsWindow(gameHwnd))
             return;
 
-        // Write mouse position to game memory if the tight connection is live.
+        // Opportunistic memory-backed mouse position write.
+        // Only performed when the global attachment targets the SAME process.
         bool attachmentMatchesTarget = _attachmentService.IsAttached
             && _attachmentService.ProcessId == window.ProcessId;
 
@@ -88,53 +86,14 @@ public sealed class BackgroundInputDispatcher
             _memoryService.WriteUInt32(IntPtr.Add(_memoryService.BaseAddress, config.MousePosYAddress), (uint)clientY);
         }
 
-        // Convert client coords to screen coords for SendInput.
-        var clientOrigin = new NativeMethods.POINT();
-        NativeMethods.ClientToScreen(gameHwnd, ref clientOrigin);
-        int screenX = clientOrigin.X + clientX;
-        int screenY = clientOrigin.Y + clientY;
-
-        // Save current mouse position so we can restore it after the click.
-        NativeMethods.GetCursorPos(out var savedCursor);
-
-        FlashFocusAndExecute(gameHwnd, () =>
+        if (config.InputMethod == InputMethod.PostMessage)
         {
-            // Move the real cursor to the target position.
-            NativeMethods.SetCursorPos(screenX, screenY);
-            Thread.Sleep(_rng.Next(5, 12));
-
-            // Mouse down
-            var downInput = new NativeMethods.INPUT
-            {
-                type = NativeMethods.INPUT_MOUSE,
-                u = new NativeMethods.INPUTUNION
-                {
-                    mi = new NativeMethods.MOUSEINPUT
-                    {
-                        dwFlags = NativeMethods.MOUSEEVENTF_LEFTDOWN,
-                    }
-                }
-            };
-            NativeMethods.SendInput(1, new[] { downInput }, Marshal.SizeOf<NativeMethods.INPUT>());
-            Thread.Sleep(_rng.Next(25, 55));
-
-            // Mouse up
-            var upInput = new NativeMethods.INPUT
-            {
-                type = NativeMethods.INPUT_MOUSE,
-                u = new NativeMethods.INPUTUNION
-                {
-                    mi = new NativeMethods.MOUSEINPUT
-                    {
-                        dwFlags = NativeMethods.MOUSEEVENTF_LEFTUP,
-                    }
-                }
-            };
-            NativeMethods.SendInput(1, new[] { upInput }, Marshal.SizeOf<NativeMethods.INPUT>());
-        });
-
-        // Restore cursor position
-        NativeMethods.SetCursorPos(savedCursor.X, savedCursor.Y);
+            PostMessageClick(gameHwnd, clientX, clientY);
+        }
+        else
+        {
+            SendInputClickViaFocusFlash(gameHwnd, clientX, clientY);
+        }
 
         if (attachmentMatchesTarget && _memoryService.IsValid)
         {
@@ -142,11 +101,106 @@ public sealed class BackgroundInputDispatcher
         }
     }
 
-    /// <summary>
-    /// Briefly brings the game window to the foreground, executes the action (SendInput calls),
-    /// then restores the previous foreground window. The entire flash takes ~50-100ms.
-    /// Uses AttachThreadInput to guarantee SetForegroundWindow succeeds.
-    /// </summary>
+    // ═══════════════════════════════════════════════════════════
+    //  PostMessage — true background, no focus steal
+    // ═══════════════════════════════════════════════════════════
+
+    private void PostMessageKey(IntPtr hwnd, int virtualKey)
+    {
+        // Build lParam the way the RO client expects:
+        // bits 0-15  = repeat count (1)
+        // bits 16-23 = scan code
+        // bit  24    = extended key flag
+        // bits 25-28 = reserved (0)
+        // bit  29    = context code (0 for WM_KEYDOWN)
+        // bit  30    = previous key state (0 = was up)
+        // bit  31    = transition state (0 = pressed)
+        uint scanCode = NativeMethods.MapVirtualKeyW((uint)virtualKey, 0);
+        IntPtr downLParam = (IntPtr)(1 | (scanCode << 16));
+        IntPtr upLParam   = (IntPtr)(1 | (scanCode << 16) | (1 << 30) | (1 << 31));
+
+        NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYDOWN, (IntPtr)virtualKey, downLParam);
+        Thread.Sleep(_rng.Next(25, 55));
+        NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYUP, (IntPtr)virtualKey, upLParam);
+    }
+
+    private static void PostMessageClick(IntPtr hwnd, int clientX, int clientY)
+    {
+        IntPtr lParam = MakeLParam(clientX, clientY);
+
+        NativeMethods.PostMessage(hwnd, NativeMethods.WM_LBUTTONDOWN_MESSAGE, (IntPtr)NativeMethods.MK_LBUTTON, lParam);
+        NativeMethods.PostMessage(hwnd, NativeMethods.WM_LBUTTONUP, IntPtr.Zero, lParam);
+    }
+
+    private static IntPtr MakeLParam(int x, int y) => (IntPtr)((y << 16) | (x & 0xFFFF));
+
+    // ═══════════════════════════════════════════════════════════
+    //  SendInput + focus-flash (Gepard/GameGuard fallback)
+    // ═══════════════════════════════════════════════════════════
+
+    private void SendInputKeyViaFocusFlash(IntPtr gameHwnd, int virtualKey)
+    {
+        ushort scanCode = (ushort)NativeMethods.MapVirtualKeyW((uint)virtualKey, 0);
+
+        FlashFocusAndExecute(gameHwnd, () =>
+        {
+            var inputs = new NativeMethods.INPUT[2];
+
+            inputs[0].type = NativeMethods.INPUT_KEYBOARD;
+            inputs[0].u.ki.wVk = (ushort)virtualKey;
+            inputs[0].u.ki.wScan = scanCode;
+            inputs[0].u.ki.dwFlags = NativeMethods.KEYEVENTF_KEYDOWN;
+
+            inputs[1].type = NativeMethods.INPUT_KEYBOARD;
+            inputs[1].u.ki.wVk = (ushort)virtualKey;
+            inputs[1].u.ki.wScan = scanCode;
+            inputs[1].u.ki.dwFlags = NativeMethods.KEYEVENTF_KEYUP;
+
+            NativeMethods.SendInput(1, new[] { inputs[0] }, Marshal.SizeOf<NativeMethods.INPUT>());
+            Thread.Sleep(_rng.Next(25, 55));
+            NativeMethods.SendInput(1, new[] { inputs[1] }, Marshal.SizeOf<NativeMethods.INPUT>());
+        });
+    }
+
+    private void SendInputClickViaFocusFlash(IntPtr gameHwnd, int clientX, int clientY)
+    {
+        var clientOrigin = new NativeMethods.POINT();
+        NativeMethods.ClientToScreen(gameHwnd, ref clientOrigin);
+        int screenX = clientOrigin.X + clientX;
+        int screenY = clientOrigin.Y + clientY;
+
+        NativeMethods.GetCursorPos(out var savedCursor);
+
+        FlashFocusAndExecute(gameHwnd, () =>
+        {
+            NativeMethods.SetCursorPos(screenX, screenY);
+            Thread.Sleep(_rng.Next(5, 12));
+
+            var downInput = new NativeMethods.INPUT
+            {
+                type = NativeMethods.INPUT_MOUSE,
+                u = new NativeMethods.INPUTUNION
+                {
+                    mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_LEFTDOWN }
+                }
+            };
+            NativeMethods.SendInput(1, new[] { downInput }, Marshal.SizeOf<NativeMethods.INPUT>());
+            Thread.Sleep(_rng.Next(25, 55));
+
+            var upInput = new NativeMethods.INPUT
+            {
+                type = NativeMethods.INPUT_MOUSE,
+                u = new NativeMethods.INPUTUNION
+                {
+                    mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_LEFTUP }
+                }
+            };
+            NativeMethods.SendInput(1, new[] { upInput }, Marshal.SizeOf<NativeMethods.INPUT>());
+        });
+
+        NativeMethods.SetCursorPos(savedCursor.X, savedCursor.Y);
+    }
+
     private void FlashFocusAndExecute(IntPtr gameHwnd, Action action)
     {
         lock (_focusLock)
@@ -158,52 +212,46 @@ public sealed class BackgroundInputDispatcher
 
             try
             {
-                // Attach our thread input to the foreground thread so SetForegroundWindow is allowed.
                 if (myThreadId != fgThreadId)
-                {
                     attached = NativeMethods.AttachThreadInput(myThreadId, fgThreadId, true);
-                }
 
                 NativeMethods.SetForegroundWindow(gameHwnd);
-                Thread.Sleep(10); // tiny wait for focus to settle
-
+                Thread.Sleep(10);
                 action();
-
                 Thread.Sleep(5);
             }
             finally
             {
-                // Restore previous foreground window.
                 if (previousFg != IntPtr.Zero && previousFg != gameHwnd)
-                {
                     NativeMethods.SetForegroundWindow(previousFg);
-                }
-
                 if (attached)
-                {
                     NativeMethods.AttachThreadInput(myThreadId, fgThreadId, false);
-                }
             }
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    //  Window handle resolution — pure handle lookup, no
+    //  attachment required for PostMessage path
+    // ═══════════════════════════════════════════════════════════
+
     private IntPtr ResolveGameWindowHandle(ClientWindowRef window)
     {
+        // 1. If the global attachment matches this target, prefer its handle
+        //    (it may have been refreshed more recently).
         if (_attachmentService.IsAttached && _attachmentService.ProcessId == window.ProcessId)
         {
             IntPtr attachedHandle = _attachmentService.WindowHandle;
             if (attachedHandle != IntPtr.Zero && NativeMethods.IsWindow(attachedHandle))
-            {
                 return attachedHandle;
-            }
         }
 
+        // 2. Use the handle stored in the ClientWindowRef (set at bind time).
         IntPtr directHandle = new(window.WindowHandle);
         if (directHandle != IntPtr.Zero && NativeMethods.IsWindow(directHandle))
-        {
             return directHandle;
-        }
 
+        // 3. Last resort: enumerate top-level windows for the process.
         IntPtr resolvedHandle = IntPtr.Zero;
         NativeMethods.EnumWindows((hWnd, _) =>
         {
@@ -213,7 +261,6 @@ public sealed class BackgroundInputDispatcher
                 resolvedHandle = hWnd;
                 return false;
             }
-
             return true;
         }, IntPtr.Zero);
 

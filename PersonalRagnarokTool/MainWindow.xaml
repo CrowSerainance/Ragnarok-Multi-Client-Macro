@@ -318,7 +318,7 @@
                                        Foreground="{StaticResource InkBrush}"
                                        FontSize="26"
                                        FontWeight="SemiBold" />
-                            <TextBlock Text="Multi-client macro dispatch with precise activity zones, trace capture, and background hotkeys."
+                            <TextBlock Text="Multi-client macro dispatch with sequence-based clicks and background hotkeys."
                                        Foreground="{StaticResource MutedInkBrush}"
                                        FontSize="13"
                                        Margin="0,6,0,0" />
@@ -326,6 +326,14 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                            <TextBlock Text="Input Method:" VerticalAlignment="Center" Margin="0,0,6,0"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <ComboBox ItemsSource="{Binding InputMethods}"
+                                      SelectedItem="{Binding SelectedInputMethod}"
+                                      Width="200"
+                                      Style="{StaticResource EditorComboBoxStyle}" />
+                        </StackPanel>
                         <Button Content="refresh windows"
                                 Command="{Binding RefreshWindowsCommand}"
                                 Style="{StaticResource SmallButtonStyle}" />
@@ -438,22 +446,14 @@
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" Margin="0,0,0,10">
-                                <Button Content="new polygon"
-                                        Command="{Binding NewPolygonCommand}"
-                                        Style="{StaticResource SmallButtonStyle}" />
-                                <Button Content="close polygon"
-                                        Command="{Binding ClosePolygonCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}" />
-                                <Button Content="delete vertex"
-                                        Command="{Binding DeleteSelectedVertexCommand}"
-                                        Style="{StaticResource SmallButtonStyle}" />
-                                <Button Content="clear polygon"
-                                        Command="{Binding ClearPolygonCommand}"
-                                        Style="{StaticResource SmallButtonStyle}" />
-                                <TextBlock Text="Left-click empty space to add vertices. Left-click a vertex to drag it."
+                                <TextBlock Text="Preview editor"
+                                           Foreground="{StaticResource InkBrush}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,12,0" />
+                                <TextBlock Text="Left-click to add sequence points. Left-click and drag an existing point to reposition it."
                                            Foreground="{StaticResource MutedInkBrush}"
                                            VerticalAlignment="Center"
-                                           Margin="8,4,0,0" />
+                                           Margin="0,4,0,0" />
                             </WrapPanel>
 
                             <ScrollViewer Grid.Row="1"
@@ -491,24 +491,18 @@
                         <Border Grid.Column="0"
                                 Style="{StaticResource CardBorderStyle}">
                             <StackPanel>
-                                <TextBlock Text="Traces"
+                                <TextBlock Text="Click sequences"
                                            Foreground="{StaticResource InkBrush}"
                                            FontSize="16"
                                            FontWeight="SemiBold" />
                                 <TextBox Style="{StaticResource EditorTextBoxStyle}"
                                          Text="{Binding NewTraceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <WrapPanel Margin="0,10,0,10">
-                                    <Button Content="add trace"
+                                    <Button Content="add sequence"
                                             Command="{Binding AddTraceCommand}"
                                             Style="{StaticResource PrimaryButtonStyle}" />
-                                    <Button Content="remove trace"
+                                    <Button Content="remove sequence"
                                             Command="{Binding RemoveTraceCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="start record"
-                                            Command="{Binding StartTraceCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="stop"
-                                            Command="{Binding StopTraceCommand}"
                                             Style="{StaticResource SmallButtonStyle}"
                                             Margin="0" />
                                 </WrapPanel>
@@ -535,7 +529,7 @@
                                 <TextBox Style="{StaticResource EditorTextBoxStyle}"
                                          Text="{Binding SelectedTrace.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding SelectedTrace, Converter={StaticResource NullToBoolean}}" />
-                                <TextBlock Text="Trace points"
+                                <TextBlock Text="Sequence points"
                                            Foreground="{StaticResource InkBrush}"
                                            FontSize="16"
                                            FontWeight="SemiBold"
@@ -598,7 +592,7 @@
                                         Command="{Binding ClearTracePointsCommand}"
                                         Style="{StaticResource SmallButtonStyle}"
                                         Margin="0,8,0,0" />
-                                <TextBlock Text="When recording is armed, clicks made over the bound client window are stored into the selected trace."
+                                <TextBlock Text="Use the preview above to add and drag points for the selected sequence."
                                            Foreground="{StaticResource MutedInkBrush}"
                                            Margin="0,10,0,0"
                                            TextWrapping="Wrap" />
@@ -679,12 +673,7 @@
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Execution mode" Foreground="{StaticResource InkBrush}" />
-                                        <ComboBox Style="{StaticResource EditorComboBoxStyle}"
-                                                  ItemsSource="{Binding ExecutionModes}"
-                                                  SelectedItem="{Binding SelectedBinding.ExecutionMode, Mode=TwoWay}" />
-
-                                        <TextBlock Text="Trace source" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBlock Text="Click sequence" Foreground="{StaticResource InkBrush}" />
                                         <ComboBox Style="{StaticResource EditorComboBoxStyle}"
                                                   ItemsSource="{Binding DataContext.SelectedClient.TraceSequences, RelativeSource={RelativeSource AncestorType=Window}}"
                                                   DisplayMemberPath="Name"
@@ -702,14 +691,6 @@
                                                  Text="{Binding SelectedBindingInterClickDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                  infra:NumericTextBoxBehavior.IsEnabled="True"
                                                  infra:NumericTextBoxBehavior.AllowBlank="False" />
-
-                                        <TextBlock Text="Click count override (blank uses trace/default)"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   Margin="0,14,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBindingClickCountOverrideText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
-                                                 infra:NumericTextBoxBehavior.AllowBlank="True" />
 
                                         <TextBlock Text="{Binding BindingEditorValidationMessage}"
                                                    Foreground="{StaticResource AlertBrush}"

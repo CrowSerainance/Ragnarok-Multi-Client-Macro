@@ -6,7 +6,7 @@ namespace PersonalRagnarokTool.Tests.Services;
 public sealed class ConfigAndRoutingTests
 {
     [Fact]
-    public void AppConfigStore_RoundTripsProfilesBindingsAndPolygon()
+    public void AppConfigStore_RoundTripsProfilesBindingsAndSequences()
     {
         string tempPath = Path.Combine(Path.GetTempPath(), $"prt-{Guid.NewGuid():N}.json");
         try
@@ -14,17 +14,13 @@ public sealed class ConfigAndRoutingTests
             var store = new AppConfigStore();
             var config = new AppConfig();
             var profile = new ClientProfile { DisplayName = "Client 1" };
-            profile.ActionPolygon.IsClosed = true;
-            profile.ActionPolygon.Vertices.Add(new NormalizedPoint(0.1, 0.2));
-            profile.ActionPolygon.Vertices.Add(new NormalizedPoint(0.9, 0.2));
-            profile.ActionPolygon.Vertices.Add(new NormalizedPoint(0.6, 0.8));
             profile.TraceSequences.Add(new TraceSequence { Name = "Trace A" });
             profile.Bindings.Add(new MacroBinding
             {
                 Name = "Primary",
                 TriggerHotkey = "f1",
                 InputKey = "1",
-                ExecutionMode = ExecutionMode.RandomPolygon,
+                ExecutionMode = ExecutionMode.TraceSequence,
             });
             config.ClientProfiles.Add(profile);
 
@@ -33,10 +29,10 @@ public sealed class ConfigAndRoutingTests
 
             Assert.Single(loaded.ClientProfiles);
             Assert.Equal("Client 1", loaded.ClientProfiles[0].DisplayName);
-            Assert.True(loaded.ClientProfiles[0].ActionPolygon.IsClosed);
-            Assert.Equal(3, loaded.ClientProfiles[0].ActionPolygon.Vertices.Count);
+            Assert.Single(loaded.ClientProfiles[0].TraceSequences);
             Assert.Single(loaded.ClientProfiles[0].Bindings);
             Assert.Equal("F1", loaded.ClientProfiles[0].Bindings[0].TriggerHotkey);
+            Assert.Equal(ExecutionMode.TraceSequence, loaded.ClientProfiles[0].Bindings[0].ExecutionMode);
         }
         finally
         {
@@ -93,6 +89,27 @@ public sealed class ConfigAndRoutingTests
         int count = ClickExecutionPlanner.ResolveClickCount(binding, trace);
 
         Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void BindingValidator_NormalizesLegacyRandomPolygonBindingsToTraceSequence()
+    {
+        var config = CreateConfig();
+        var trace = new TraceSequence { Name = "Sequence A" };
+        config.ClientProfiles[0].TraceSequences.Add(trace);
+        config.ClientProfiles[0].Bindings.Add(new MacroBinding
+        {
+            Name = "Legacy",
+            TriggerHotkey = "F4",
+            InputKey = "4",
+            ExecutionMode = ExecutionMode.RandomPolygon,
+        });
+
+        BindingValidator.NormalizeConfig(config);
+
+        var binding = config.ClientProfiles[0].Bindings[0];
+        Assert.Equal(ExecutionMode.TraceSequence, binding.ExecutionMode);
+        Assert.Equal(trace.Id, binding.TraceSequenceId);
     }
 
     [Theory]

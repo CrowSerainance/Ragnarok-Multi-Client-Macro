@@ -6,7 +6,7 @@ namespace PersonalRagnarokTool.Core.Models;
 public sealed class TraceSequence : ObservableObject
 {
     private string _id = Guid.NewGuid().ToString("N");
-    private string _name = "Trace";
+    private string _name = "Sequence";
     private DateTimeOffset _lastUpdatedUtc = DateTimeOffset.UtcNow;
 
     public string Id
@@ -18,7 +18,7 @@ public sealed class TraceSequence : ObservableObject
     public string Name
     {
         get => _name;
-        set => SetProperty(ref _name, string.IsNullOrWhiteSpace(value) ? "Trace" : value.Trim());
+        set => SetProperty(ref _name, string.IsNullOrWhiteSpace(value) ? "Sequence" : value.Trim());
     }
 
     public DateTimeOffset LastUpdatedUtc

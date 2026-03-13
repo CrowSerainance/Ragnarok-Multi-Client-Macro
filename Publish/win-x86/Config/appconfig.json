@@ -1,7 +1,21 @@
 {
   "version": 1,
-  "lastSavedUtc": "2026-03-13T00:00:00+08:00",
+  "lastSavedUtc": "2026-03-13T00:40:50.3617778+00:00",
   "mousePosXAddress": 11829088,
   "mousePosYAddress": 11829092,
-  "clientProfiles": []
+  "clientProfiles": [
+    {
+      "id": "f870b570b161441cb6855600d92d749b",
+      "displayName": "Client 1",
+      "isEnabled": true,
+      "actionPolygon": {
+        "vertices": [],
+        "isClosed": false,
+        "isReady": false
+      },
+      "bindings": [],
+      "traceSequences": [],
+      "boundWindowDisplayText": "Not bound"
+    }
+  ]
 }
