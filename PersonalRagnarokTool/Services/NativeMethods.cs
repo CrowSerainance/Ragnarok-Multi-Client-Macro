@@ -367,4 +367,47 @@ internal static class NativeMethods
         public ulong Size;
     }
 
+    // --- Thread suspend/resume & enumeration (for Watch/inject flow) ---
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Thread32First(IntPtr hSnapshot, ref THREADENTRY32 lpte);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Thread32Next(IntPtr hSnapshot, ref THREADENTRY32 lpte);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenThread(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwThreadId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern uint SuspendThread(IntPtr hThread);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern uint ResumeThread(IntPtr hThread);
+
+    [DllImport("ntdll.dll")]
+    public static extern uint RtlCreateUserThread(IntPtr ProcessHandle, IntPtr SecurityDescriptor,
+        [MarshalAs(UnmanagedType.Bool)] bool CreateSuspended, uint StackZeroBits,
+        IntPtr StackReserved, IntPtr StackCommit, IntPtr StartAddress, IntPtr StartParameter,
+        out IntPtr ThreadHandle, out IntPtr ClientId);
+
+    public const uint TH32CS_SNAPTHREAD = 0x00000004;
+    public const uint THREAD_SUSPEND_RESUME = 0x0002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct THREADENTRY32
+    {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ThreadID;
+        public uint th32OwnerProcessID;
+        public int tpBasePri;
+        public int tpDeltaPri;
+        public uint dwFlags;
+    }
+
 }

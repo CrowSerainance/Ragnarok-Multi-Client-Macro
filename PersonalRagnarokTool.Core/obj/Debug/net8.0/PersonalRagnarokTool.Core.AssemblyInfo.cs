@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PersonalRagnarokTool.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae154235c9f0156bf92eebf4b59c6693c01fe572")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d46ce8b35d7d1aa1a56e176f28649b51e6b54120")]
 [assembly: System.Reflection.AssemblyProductAttribute("PersonalRagnarokTool.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PersonalRagnarokTool.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -215,7 +215,7 @@
                                        Foreground="#FFF7E0"
                                        FontSize="20"
                                        FontWeight="SemiBold" />
-                            <TextBlock Text="Profiles, live status, and quick controls"
+                            <TextBlock Text="Cell-based macro dispatch with configurable click radius."
                                        Foreground="#F5DFC0"
                                        FontSize="12"
                                        Margin="0,2,0,0" />
@@ -318,7 +318,7 @@
                                        Foreground="{StaticResource InkBrush}"
                                        FontSize="26"
                                        FontWeight="SemiBold" />
-                            <TextBlock Text="Multi-client macro dispatch with sequence-based clicks and background hotkeys."
+                            <TextBlock Text="Cell-based macro dispatch. Each binding clicks within a configurable cell radius from screen center."
                                        Foreground="{StaticResource MutedInkBrush}"
                                        FontSize="13"
                                        Margin="0,6,0,0" />
@@ -352,9 +352,9 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
+                    <!-- Client & Window Binding -->
                     <Border Grid.Row="0"
                             Style="{StaticResource CardBorderStyle}">
                         <Grid>
@@ -403,10 +403,6 @@
                                             Style="{StaticResource SmallButtonStyle}"
                                             Margin="0" />
                                 </WrapPanel>
-                                <Button Content="refresh preview"
-                                        Command="{Binding RefreshPreviewCommand}"
-                                        Style="{StaticResource SmallButtonStyle}"
-                                        Margin="0,10,0,0" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
@@ -424,10 +420,6 @@
                                            Foreground="{StaticResource InkBrush}"
                                            Margin="0,6,0,0"
                                            TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding PreviewStatus}"
-                                           Foreground="{StaticResource MutedInkBrush}"
-                                           Margin="0,10,0,0"
-                                           TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding HotkeyStatus}"
                                            Foreground="{StaticResource MutedInkBrush}"
                                            Margin="0,10,0,0"
@@ -436,271 +428,119 @@
                         </Grid>
                     </Border>
 
+                    <!-- Bindings -->
                     <Border Grid.Row="1"
                             Margin="0,16,0,0"
                             Style="{StaticResource CardBorderStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" Margin="0,0,0,10">
-                                <TextBlock Text="Preview editor"
+                                <TextBlock Text="Bindings"
                                            Foreground="{StaticResource InkBrush}"
+                                           FontSize="16"
                                            FontWeight="SemiBold"
                                            Margin="0,0,12,0" />
-                                <TextBlock Text="Left-click to add sequence points. Left-click and drag an existing point to reposition it."
-                                           Foreground="{StaticResource MutedInkBrush}"
-                                           VerticalAlignment="Center"
-                                           Margin="0,4,0,0" />
+                                <Button Content="add binding"
+                                        Command="{Binding AddBindingCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}" />
+                                <Button Content="remove binding"
+                                        Command="{Binding RemoveBindingCommand}"
+                                        Style="{StaticResource SmallButtonStyle}"
+                                        Margin="0" />
                             </WrapPanel>
 
-                            <ScrollViewer Grid.Row="1"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
-                                <Border BorderBrush="{StaticResource BorderBrushSoft}"
-                                        BorderThickness="1"
-                                        CornerRadius="16"
-                                        Background="#FFF8E6"
-                                        Padding="8">
-                                    <Grid Width="{Binding PreviewWidth}" Height="{Binding PreviewHeight}">
-                                        <Image Source="{Binding PreviewImage}"
-                                               Stretch="Fill" />
-                                        <Canvas x:Name="PreviewCanvas"
-                                                Width="{Binding PreviewWidth}"
-                                                Height="{Binding PreviewHeight}"
-                                                Background="Transparent"
-                                                MouseLeftButtonDown="PreviewCanvas_OnMouseLeftButtonDown"
-                                                MouseLeftButtonUp="PreviewCanvas_OnMouseLeftButtonUp"
-                                                MouseMove="PreviewCanvas_OnMouseMove"
-                                                SizeChanged="PreviewCanvas_OnSizeChanged" />
-                                    </Grid>
-                                </Border>
-                            </ScrollViewer>
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding SelectedClient.Bindings}"
+                                     SelectedItem="{Binding SelectedBinding}"
+                                     Background="#FFF9EC"
+                                     Foreground="{StaticResource InkBrush}"
+                                     BorderBrush="{StaticResource BorderBrushSoft}"
+                                     MinHeight="140"
+                                     Margin="0,0,0,14"
+                                     Style="{StaticResource PanelListBoxStyle}"
+                                     ItemContainerStyle="{StaticResource ListBoxItemChromeStyle}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:MacroBinding}">
+                                        <DockPanel Margin="0,4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Foreground="{StaticResource AccentDeepBrush}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0} | {1} cells">
+                                                        <Binding Path="TriggerHotkey" />
+                                                        <Binding Path="CellRadius" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <Grid Grid.Row="2"
+                                  IsEnabled="{Binding SelectedBinding, Converter={StaticResource NullToBoolean}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Binding name" Foreground="{StaticResource InkBrush}" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBinding.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <CheckBox Content="binding enabled"
+                                              IsChecked="{Binding SelectedBinding.IsEnabled, Mode=TwoWay}"
+                                              Foreground="{StaticResource InkBrush}"
+                                              Margin="0,10,0,0" />
+
+                                    <TextBlock Text="Trigger hotkey" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBinding.TriggerHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             infra:HotkeyCapture.IsEnabled="True" />
+
+                                    <TextBlock Text="Input key sent to target client" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBinding.InputKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             infra:HotkeyCapture.IsEnabled="True" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Cell radius (cells from center)" Foreground="{StaticResource InkBrush}" />
+                                    <ComboBox Style="{StaticResource EditorComboBoxStyle}"
+                                              ItemsSource="{Binding CellRadiusOptions}"
+                                              SelectedItem="{Binding SelectedBinding.CellRadius, Mode=TwoWay}" />
+
+                                    <TextBlock Text="Click count" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBindingClickCountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             infra:NumericTextBoxBehavior.IsEnabled="True"
+                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                    <TextBlock Text="Post-input delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBindingPostInputDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             infra:NumericTextBoxBehavior.IsEnabled="True"
+                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                    <TextBlock Text="Inter-click delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                             Text="{Binding SelectedBindingInterClickDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             infra:NumericTextBoxBehavior.IsEnabled="True"
+                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                    <TextBlock Text="{Binding BindingEditorValidationMessage}"
+                                               Foreground="{StaticResource AlertBrush}"
+                                               Margin="0,10,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
                         </Grid>
                     </Border>
-
-                    <Grid Grid.Row="2" Margin="0,16,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="340" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0"
-                                Style="{StaticResource CardBorderStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Click sequences"
-                                           Foreground="{StaticResource InkBrush}"
-                                           FontSize="16"
-                                           FontWeight="SemiBold" />
-                                <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                         Text="{Binding NewTraceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <WrapPanel Margin="0,10,0,10">
-                                    <Button Content="add sequence"
-                                            Command="{Binding AddTraceCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}" />
-                                    <Button Content="remove sequence"
-                                            Command="{Binding RemoveTraceCommand}"
-                                            Style="{StaticResource SmallButtonStyle}"
-                                            Margin="0" />
-                                </WrapPanel>
-                                <ListBox ItemsSource="{Binding SelectedClient.TraceSequences}"
-                                         SelectedItem="{Binding SelectedTrace}"
-                                         Background="#FFF9EC"
-                                         Foreground="{StaticResource InkBrush}"
-                                         BorderBrush="{StaticResource BorderBrushSoft}"
-                                         MinHeight="180"
-                                         MaxHeight="220"
-                                         Style="{StaticResource PanelListBoxStyle}"
-                                         ItemContainerStyle="{StaticResource ListBoxItemChromeStyle}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type models:TraceSequence}">
-                                            <StackPanel Margin="0,4">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding LastUpdatedUtc, StringFormat='Updated: {0:yyyy-MM-dd HH:mm:ss}'}"
-                                                           Foreground="{StaticResource MutedInkBrush}"
-                                                           FontSize="11" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                         Text="{Binding SelectedTrace.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding SelectedTrace, Converter={StaticResource NullToBoolean}}" />
-                                <TextBlock Text="Sequence points"
-                                           Foreground="{StaticResource InkBrush}"
-                                           FontSize="16"
-                                           FontWeight="SemiBold"
-                                           Margin="0,14,0,0" />
-                                <TextBlock Text="{Binding SelectedTracePointSummary}"
-                                           Foreground="{StaticResource InkBrush}"
-                                           Margin="0,6,0,0"
-                                           TextWrapping="Wrap" />
-                                <ListBox ItemsSource="{Binding SelectedTrace.Points}"
-                                         SelectedItem="{Binding SelectedTracePoint}"
-                                         Background="#FFF9EC"
-                                         Foreground="{StaticResource InkBrush}"
-                                         BorderBrush="{StaticResource BorderBrushSoft}"
-                                         MinHeight="180"
-                                         MaxHeight="220"
-                                         Margin="0,8,0,0"
-                                         IsEnabled="{Binding SelectedTrace, Converter={StaticResource NullToBoolean}}"
-                                         Style="{StaticResource PanelListBoxStyle}"
-                                         ItemContainerStyle="{StaticResource ListBoxItemChromeStyle}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type models:NormalizedPoint}">
-                                            <DockPanel Margin="0,4">
-                                                <TextBlock Text="{Binding X, StringFormat='X {0:0.000}'}"
-                                                           FontWeight="SemiBold" />
-                                                <TextBlock DockPanel.Dock="Right"
-                                                           Text="{Binding Y, StringFormat='Y {0:0.000}'}"
-                                                           Foreground="{StaticResource MutedInkBrush}" />
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <WrapPanel Margin="0,10,0,0">
-                                    <Button Content="remove point"
-                                            Command="{Binding RemoveTracePointCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="move up"
-                                            Command="{Binding MoveTracePointUpCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="move down"
-                                            Command="{Binding MoveTracePointDownCommand}"
-                                            Style="{StaticResource SmallButtonStyle}"
-                                            Margin="0" />
-                                </WrapPanel>
-                                <WrapPanel Margin="0,8,0,0">
-                                    <Button Content="nudge left"
-                                            Command="{Binding NudgeTracePointLeftCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="nudge up"
-                                            Command="{Binding NudgeTracePointUpCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="nudge down"
-                                            Command="{Binding NudgeTracePointDownCommand}"
-                                            Style="{StaticResource SmallButtonStyle}" />
-                                    <Button Content="nudge right"
-                                            Command="{Binding NudgeTracePointRightCommand}"
-                                            Style="{StaticResource SmallButtonStyle}"
-                                            Margin="0" />
-                                </WrapPanel>
-                                <Button Content="clear all points"
-                                        Command="{Binding ClearTracePointsCommand}"
-                                        Style="{StaticResource SmallButtonStyle}"
-                                        Margin="0,8,0,0" />
-                                <TextBlock Text="Use the preview above to add and drag points for the selected sequence."
-                                           Foreground="{StaticResource MutedInkBrush}"
-                                           Margin="0,10,0,0"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Column="2"
-                                Style="{StaticResource CardBorderStyle}">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-
-                                <WrapPanel Grid.Row="0" Margin="0,0,0,10">
-                                    <TextBlock Text="Bindings"
-                                               Foreground="{StaticResource InkBrush}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,12,0" />
-                                    <Button Content="add binding"
-                                            Command="{Binding AddBindingCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}" />
-                                    <Button Content="remove binding"
-                                            Command="{Binding RemoveBindingCommand}"
-                                            Style="{StaticResource SmallButtonStyle}"
-                                            Margin="0" />
-                                </WrapPanel>
-
-                                <ListBox Grid.Row="1"
-                                         ItemsSource="{Binding SelectedClient.Bindings}"
-                                         SelectedItem="{Binding SelectedBinding}"
-                                         Background="#FFF9EC"
-                                         Foreground="{StaticResource InkBrush}"
-                                         BorderBrush="{StaticResource BorderBrushSoft}"
-                                         MinHeight="180"
-                                         Margin="0,0,0,14"
-                                         Style="{StaticResource PanelListBoxStyle}"
-                                         ItemContainerStyle="{StaticResource ListBoxItemChromeStyle}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type models:MacroBinding}">
-                                            <DockPanel Margin="0,4">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock DockPanel.Dock="Right"
-                                                           Text="{Binding TriggerHotkey}"
-                                                           Foreground="{StaticResource AccentDeepBrush}" />
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-
-                                <Grid Grid.Row="2"
-                                      IsEnabled="{Binding SelectedBinding, Converter={StaticResource NullToBoolean}}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Margin="0,0,12,0">
-                                        <TextBlock Text="Binding name" Foreground="{StaticResource InkBrush}" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBinding.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <CheckBox Content="binding enabled"
-                                                  IsChecked="{Binding SelectedBinding.IsEnabled, Mode=TwoWay}"
-                                                  Foreground="{StaticResource InkBrush}"
-                                                  Margin="0,10,0,0" />
-
-                                        <TextBlock Text="Trigger hotkey" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBinding.TriggerHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:HotkeyCapture.IsEnabled="True" />
-
-                                        <TextBlock Text="Input key sent to target client" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBinding.InputKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:HotkeyCapture.IsEnabled="True" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Click sequence" Foreground="{StaticResource InkBrush}" />
-                                        <ComboBox Style="{StaticResource EditorComboBoxStyle}"
-                                                  ItemsSource="{Binding DataContext.SelectedClient.TraceSequences, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                  DisplayMemberPath="Name"
-                                                  SelectedValuePath="Id"
-                                                  SelectedValue="{Binding SelectedBinding.TraceSequenceId, Mode=TwoWay}" />
-
-                                        <TextBlock Text="Post-input delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBindingPostInputDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
-                                                 infra:NumericTextBoxBehavior.AllowBlank="False" />
-
-                                        <TextBlock Text="Inter-click delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                                 Text="{Binding SelectedBindingInterClickDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
-                                                 infra:NumericTextBoxBehavior.AllowBlank="False" />
-
-                                        <TextBlock Text="{Binding BindingEditorValidationMessage}"
-                                                   Foreground="{StaticResource AlertBrush}"
-                                                   Margin="0,10,0,0"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Grid>
-                            </Grid>
-                        </Border>
-                    </Grid>
                 </Grid>
             </ScrollViewer>
 

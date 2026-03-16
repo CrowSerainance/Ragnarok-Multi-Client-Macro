@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "OhG1zDS11VA=",
+  "dgSpecHash": "PfdCNFc8vUo=",
   "success": true,
-  "projectFilePath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
+  "projectFilePath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\chris\\.nuget\\packages\\coverlet.collector\\6.0.0\\coverlet.collector.6.0.0.nupkg.sha512",
     "C:\\Users\\chris\\.nuget\\packages\\microsoft.codecoverage\\17.8.0\\microsoft.codecoverage.17.8.0.nupkg.sha512",

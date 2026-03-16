@@ -8,37 +8,9 @@ namespace prt {
 
 // ---- Geometry ----
 
-struct NormalizedPoint {
-    double x = 0.0;
-    double y = 0.0;
-};
-
 struct PixelPoint {
     int x = 0;
     int y = 0;
-};
-
-struct ActionPolygon {
-    std::vector<NormalizedPoint> vertices;
-    bool isClosed = false;
-
-    bool isReady() const { return isClosed && vertices.size() >= 3; }
-};
-
-// ---- Execution Mode ----
-
-enum class ExecutionMode {
-    RandomInPolygon = 0,
-    TraceSequence   = 1,
-};
-
-// ---- Trace ----
-
-struct TraceSequence {
-    std::string id;
-    std::string name;
-    std::vector<NormalizedPoint> points;
-    std::string lastUpdatedUtc;
 };
 
 // ---- Binding ----
@@ -50,11 +22,10 @@ struct MacroBinding {
     bool isEnabled          = true;
     std::string triggerHotkey;
     std::string inputKey;
-    ExecutionMode executionMode = ExecutionMode::RandomInPolygon;
-    std::string traceSequenceId;
+    int cellRadius          = 5;
     int postInputDelayMs    = 100;
     int interClickDelayMs   = 50;
-    int clickCountOverride  = -1;
+    int clickCount          = 1;
 };
 
 // ---- Client Window Ref ----
@@ -140,8 +111,6 @@ struct ClientProfile {
     bool isEnabled = true;
     ClientWindowRef boundWindow;
     bool hasBoundWindow = false;
-    ActionPolygon actionPolygon;
-    std::vector<TraceSequence> traceSequences;
     std::vector<MacroBinding> bindings;
 
     // Runtime

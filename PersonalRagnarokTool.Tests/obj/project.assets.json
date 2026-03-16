@@ -5530,11 +5530,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
+      "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
       "projectName": "PersonalRagnarokTool.Tests",
-      "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
+      "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
       "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
-      "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Tests\\obj\\",
+      "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "G:\\VS2022\\Shared\\NuGetPackages"
@@ -5556,8 +5556,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {
-              "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj"
+            "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {
+              "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj"
             }
           }
         }

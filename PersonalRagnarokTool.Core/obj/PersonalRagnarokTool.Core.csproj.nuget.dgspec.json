@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {}
+    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {}
   },
   "projects": {
-    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {
+    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
+        "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
         "projectName": "PersonalRagnarokTool.Core",
-        "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
+        "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
         "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
-        "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\_Legacy\\PersonalRagnarokTool.Core\\obj\\",
+        "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "G:\\VS2022\\Shared\\NuGetPackages"

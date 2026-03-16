@@ -1,60 +1,7 @@
 {
   "version": 1,
-  "lastSavedUtc": "2026-03-13T08:37:12.299481+00:00",
+  "lastSavedUtc": "2026-03-13T00:00:00+08:00",
   "mousePosXAddress": 11829088,
   "mousePosYAddress": 11829092,
-  "inputMethod": "postMessage",
-  "clientProfiles": [
-    {
-      "id": "8a0a9fa5fb284cfda7954114a062a37a",
-      "displayName": "Client 1",
-      "isEnabled": true,
-      "boundWindow": {
-        "windowHandle": 5641972,
-        "processId": 44256,
-        "processName": "Muh",
-        "windowTitle": "MuhRO | Gepard Shield 3.0 (^-_-^)",
-        "clientWidth": 1600,
-        "clientHeight": 900,
-        "displayText": "MuhRO | Gepard Shield 3.0 (^-_-^) (Muh:44256)"
-      },
-      "actionPolygon": {
-        "vertices": [],
-        "isClosed": false,
-        "isReady": false
-      },
-      "bindings": [
-        {
-          "id": "2a17eeaeb67f445aa593ad3650c86136",
-          "clientProfileId": "8a0a9fa5fb284cfda7954114a062a37a",
-          "name": "Client 1 Binding 1",
-          "isEnabled": true,
-          "triggerHotkey": "OemPlus",
-          "inputKey": "F1",
-          "executionMode": "traceSequence",
-          "traceSequenceId": "5d5214340e7547ef9d8f226864bed0cf",
-          "postInputDelayMs": 120,
-          "interClickDelayMs": 80
-        }
-      ],
-      "traceSequences": [
-        {
-          "id": "5d5214340e7547ef9d8f226864bed0cf",
-          "name": "Sequence 1",
-          "lastUpdatedUtc": "2026-03-13T08:28:50.6892307+00:00",
-          "points": [
-            {
-              "x": 0.7395833333333334,
-              "y": 0.6333333333333333
-            },
-            {
-              "x": 0.56875,
-              "y": 0.25925925925925924
-            }
-          ]
-        }
-      ],
-      "boundWindowDisplayText": "MuhRO | Gepard Shield 3.0 (^-_-^) (Muh:44256)"
-    }
-  ]
+  "clientProfiles": []
 }

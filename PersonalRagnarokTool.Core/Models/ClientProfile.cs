@@ -10,7 +10,6 @@ public sealed class ClientProfile : ObservableObject
     private string _displayName = "Client";
     private bool _isEnabled = true;
     private ClientWindowRef? _boundWindow;
-    private ActionPolygon _actionPolygon = new();
     private string _runtimeStatusLabel = "Unbound";
     private string _runtimeStatusDetail = "Bind this profile to a live client window.";
     private bool _hasLiveWindow;
@@ -45,15 +44,7 @@ public sealed class ClientProfile : ObservableObject
         }
     }
 
-    public ActionPolygon ActionPolygon
-    {
-        get => _actionPolygon;
-        set => SetProperty(ref _actionPolygon, value ?? new ActionPolygon());
-    }
-
     public ObservableCollection<MacroBinding> Bindings { get; set; } = new();
-
-    public ObservableCollection<TraceSequence> TraceSequences { get; set; } = new();
 
     public string BoundWindowDisplayText => BoundWindow?.DisplayText ?? "Not bound";
 

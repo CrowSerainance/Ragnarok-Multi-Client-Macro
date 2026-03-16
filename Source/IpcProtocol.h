@@ -34,7 +34,7 @@ struct ExecuteMacroHeader {
     uint32_t macroId;
     uint16_t virtualKey;
     uint8_t  targetDirection; // 0=Up, 1=Down, 2=Left, 3=Right
-    uint8_t  targetDistance;  // 4, 8, or 12
+    uint8_t  targetDistance;  // Cell radius: 5, 8, or 10
 };
 
 struct ExecuteBindingHeader {

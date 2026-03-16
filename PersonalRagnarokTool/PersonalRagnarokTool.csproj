@@ -1,15 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\PersonalRagnarokTool.Core\PersonalRagnarokTool.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Config\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -23,5 +12,73 @@
     <AssemblyName>RagnarokControlDeck</AssemblyName>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PersonalRagnarokTool.Core\PersonalRagnarokTool.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Config\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Reference MuhBot Injection/Handle/Kernel directly (single source of truth). -->
+  <ItemGroup>
+    <None Update="..\..\MY OWN SERVER PROJECT\MuhBot\MuhBot\Injection\**\*.*">
+      <Link>Injection\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\..\MY OWN SERVER PROJECT\MuhBot\MuhBot\Handle\**\*.*">
+      <Link>Handle\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\..\MY OWN SERVER PROJECT\MuhBot\MuhBot\Kernel\**\*.*">
+      <Link>Kernel\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- HEAVENSGATE.DLL — Gepard bypass (from Simple Ragnarok Program BypassDll build) -->
+    <None Update="..\..\Simple Ragnarok Program\BypassDll\Release\HEAVENSGATE.dll">
+      <Link>HEAVENSGATE.DLL</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Dll1.dll — Packet injector (from Simple Ragnarok Program Dll1 build) -->
+    <None Update="..\..\Simple Ragnarok Program\Dll1\Release\Dll1.dll">
+      <Link>Dll1.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- ColdHide.dll — Anti-anti-debug (from Simple Ragnarok Program ColdHide build) -->
+    <None Update="..\..\Simple Ragnarok Program\ColdHide\Release\ColdHide.dll">
+      <Link>ColdHide.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Copy MuhBot folders + bypass DLLs to output (SDK may not expand external globs). -->
+  <Target Name="CopyMuhBotAndBypassToOutput" AfterTargets="Build">
+    <PropertyGroup>
+      <_MuhBotRoot>$(MSBuildProjectDirectory)\..\..\MY OWN SERVER PROJECT\MuhBot\MuhBot</_MuhBotRoot>
+      <_SrpRoot>$(MSBuildProjectDirectory)\..\..\Simple Ragnarok Program</_SrpRoot>
+    </PropertyGroup>
+    <ItemGroup>
+      <_InjectionFiles Include="$(_MuhBotRoot)\Injection\**\*.*" />
+      <_HandleFiles Include="$(_MuhBotRoot)\Handle\**\*.*" />
+      <_KernelFiles Include="$(_MuhBotRoot)\Kernel\**\*.*" />
+    </ItemGroup>
+    <!-- MuhBot Injection/Handle/Kernel → output root and Support\ -->
+    <Copy SourceFiles="@(_InjectionFiles)" DestinationFolder="$(OutDir)Injection\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_HandleFiles)" DestinationFolder="$(OutDir)Handle\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_KernelFiles)" DestinationFolder="$(OutDir)Kernel\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_InjectionFiles)" DestinationFolder="$(OutDir)Support\Injection\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_HandleFiles)" DestinationFolder="$(OutDir)Support\Handle\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_KernelFiles)" DestinationFolder="$(OutDir)Support\Kernel\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <!-- HEAVENSGATE -->
+    <Copy Condition="Exists('$(_SrpRoot)\BypassDll\Release\HEAVENSGATE.dll')" SourceFiles="$(_SrpRoot)\BypassDll\Release\HEAVENSGATE.dll" DestinationFiles="$(OutDir)HEAVENSGATE.DLL" SkipUnchangedFiles="true" />
+    <!-- Dll1 -->
+    <Copy Condition="Exists('$(_SrpRoot)\Dll1\Release\Dll1.dll')" SourceFiles="$(_SrpRoot)\Dll1\Release\Dll1.dll" DestinationFiles="$(OutDir)Dll1.dll" SkipUnchangedFiles="true" />
+    <!-- ColdHide -->
+    <Copy Condition="Exists('$(_SrpRoot)\ColdHide\Release\ColdHide.dll')" SourceFiles="$(_SrpRoot)\ColdHide\Release\ColdHide.dll" DestinationFiles="$(OutDir)ColdHide.dll" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

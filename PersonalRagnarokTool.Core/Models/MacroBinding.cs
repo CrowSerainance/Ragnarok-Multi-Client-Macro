@@ -10,11 +10,10 @@ public sealed class MacroBinding : ObservableObject
     private bool _isEnabled = true;
     private string _triggerHotkey = "F1";
     private string _inputKey = "F1";
-    private ExecutionMode _executionMode = ExecutionMode.TraceSequence;
-    private string? _traceSequenceId;
+    private int _cellRadius = 5;
     private int _postInputDelayMs = 120;
     private int _interClickDelayMs = 80;
-    private int? _clickCountOverride;
+    private int _clickCount = 1;
 
     public string Id
     {
@@ -52,16 +51,10 @@ public sealed class MacroBinding : ObservableObject
         set => SetProperty(ref _inputKey, value?.Trim() ?? string.Empty);
     }
 
-    public ExecutionMode ExecutionMode
+    public int CellRadius
     {
-        get => _executionMode;
-        set => SetProperty(ref _executionMode, value);
-    }
-
-    public string? TraceSequenceId
-    {
-        get => _traceSequenceId;
-        set => SetProperty(ref _traceSequenceId, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+        get => _cellRadius;
+        set => SetProperty(ref _cellRadius, Core.Geometry.CellMath.ClampRadius(value));
     }
 
     public int PostInputDelayMs
@@ -76,9 +69,9 @@ public sealed class MacroBinding : ObservableObject
         set => SetProperty(ref _interClickDelayMs, Math.Max(0, value));
     }
 
-    public int? ClickCountOverride
+    public int ClickCount
     {
-        get => _clickCountOverride;
-        set => SetProperty(ref _clickCountOverride, value is null ? null : Math.Max(1, value.Value));
+        get => _clickCount;
+        set => SetProperty(ref _clickCount, Math.Max(1, value));
     }
 }

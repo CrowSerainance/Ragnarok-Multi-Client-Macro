@@ -271,6 +271,182 @@ public sealed class ProcessAttachmentService
         return Path.Combine(baseDirectory, Path.Combine(pathParts));
     }
 
+    public string LastInjectionFailure { get; private set; } = "";
+
+    /// <summary>Inject a DLL into the target process via CreateRemoteThread + LoadLibraryA.</summary>
+    public bool InjectDll(int processId, string dllPath)
+    {
+        return InjectViaShadowThread(processId, dllPath);
+    }
+
+    /// <summary>Stealth injection (same mechanism, uses hijacked handle if available).</summary>
+    public bool InjectDllStealth(int processId, string dllPath)
+    {
+        return InjectViaShadowThread(processId, dllPath);
+    }
+
+    private bool InjectViaShadowThread(int targetPid, string dllPath)
+    {
+        LastInjectionFailure = "";
+        bool useReadHandle = _readHandle != IntPtr.Zero && _handleFromLaunch;
+        IntPtr hProcess = useReadHandle ? _readHandle : NativeMethods.OpenProcess(NativeMethods.PROCESS_ALL_ACCESS, false, (uint)targetPid);
+        if (hProcess == IntPtr.Zero && _readHandle != IntPtr.Zero)
+            hProcess = _readHandle;
+        if (hProcess == IntPtr.Zero)
+        {
+            LastInjectionFailure = $"OpenProcess failed (Win32={Marshal.GetLastWin32Error()}).";
+            return false;
+        }
+
+        IntPtr pLoadLibrary = NativeMethods.GetProcAddress(NativeMethods.GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+        if (pLoadLibrary == IntPtr.Zero)
+        {
+            if (!useReadHandle && hProcess != _readHandle) NativeMethods.CloseHandle(hProcess);
+            LastInjectionFailure = "GetProcAddress(LoadLibraryA) failed.";
+            return false;
+        }
+
+        byte[] pathBytes = System.Text.Encoding.ASCII.GetBytes(dllPath + "\0");
+        IntPtr remoteMem = NativeMethods.VirtualAllocEx(hProcess, IntPtr.Zero, (uint)pathBytes.Length, NativeMethods.MEM_COMMIT | NativeMethods.MEM_RESERVE, NativeMethods.PAGE_READWRITE);
+        if (remoteMem == IntPtr.Zero)
+        {
+            if (!useReadHandle && hProcess != _readHandle) NativeMethods.CloseHandle(hProcess);
+            LastInjectionFailure = $"VirtualAllocEx failed (Win32={Marshal.GetLastWin32Error()}).";
+            return false;
+        }
+
+        bool writeOk = NativeMethods.WriteProcessMemory(hProcess, remoteMem, pathBytes, (uint)pathBytes.Length, out _);
+        if (!writeOk)
+        {
+            NativeMethods.VirtualFreeEx(hProcess, remoteMem, 0, 0x8000);
+            if (!useReadHandle && hProcess != _readHandle) NativeMethods.CloseHandle(hProcess);
+            LastInjectionFailure = $"WriteProcessMemory failed (Win32={Marshal.GetLastWin32Error()}).";
+            return false;
+        }
+
+        IntPtr hThread = NativeMethods.CreateRemoteThread(hProcess, IntPtr.Zero, 0, pLoadLibrary, remoteMem, 0, IntPtr.Zero);
+        if (hThread == IntPtr.Zero)
+        {
+            uint rt = NativeMethods.RtlCreateUserThread(hProcess, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, pLoadLibrary, remoteMem, out hThread, out _);
+            if (rt != 0 || hThread == IntPtr.Zero)
+            {
+                NativeMethods.VirtualFreeEx(hProcess, remoteMem, 0, 0x8000);
+                if (!useReadHandle && hProcess != _readHandle) NativeMethods.CloseHandle(hProcess);
+                LastInjectionFailure = $"CreateRemoteThread+RtlCreateUserThread failed (Win32={Marshal.GetLastWin32Error()}).";
+                return false;
+            }
+        }
+
+        NativeMethods.CloseHandle(hThread);
+        if (!useReadHandle && hProcess != _readHandle) NativeMethods.CloseHandle(hProcess);
+        return true;
+    }
+
+    /// <summary>
+    /// Watch flow: suspend all threads, inject ColdHide (optional) + HEAVENSGATE + Dll1,
+    /// connect pipe, then resume. Identical to Simple Ragnarok Program's workflow.
+    /// </summary>
+    public async Task<bool> AttachSuspendInjectBothConnectResumeAsync(
+        int targetPid, string heavensGatePath, string dll1Path,
+        Func<Task<bool>> connectPipeAsync, string? coldHidePath = null)
+    {
+        LastInjectionFailure = "";
+        IntPtr hProcess = NativeMethods.OpenProcess(NativeMethods.PROCESS_ALL_ACCESS, false, (uint)targetPid);
+        if (hProcess == IntPtr.Zero)
+        {
+            LastInjectionFailure = $"OpenProcess failed (Win32={Marshal.GetLastWin32Error()}).";
+            return false;
+        }
+        var threads = SuspendOrResumeAllThreads((uint)targetPid, true);
+        try
+        {
+            if (!string.IsNullOrEmpty(coldHidePath) && System.IO.File.Exists(coldHidePath))
+            {
+                if (!InjectOneDll(hProcess, coldHidePath)) return false;
+                System.Threading.Thread.Sleep(100);
+            }
+            if (!InjectOneDll(hProcess, heavensGatePath)) return false;
+            System.Threading.Thread.Sleep(50);
+            if (!InjectOneDll(hProcess, dll1Path)) return false;
+            System.Threading.Thread.Sleep(250);
+            bool pipeOk = await connectPipeAsync();
+            if (!pipeOk) LastInjectionFailure = "Pipe connect failed (Dll1 may not have created it).";
+        }
+        finally
+        {
+            SuspendOrResumeAllThreads((uint)targetPid, false, threads);
+        }
+        _readHandle = hProcess;
+        _process = Process.GetProcessById(targetPid);
+        _handleFromLaunch = false;
+        try { _baseAddress = _process.MainModule?.BaseAddress ?? IntPtr.Zero; } catch { _baseAddress = IntPtr.Zero; }
+        _isAttached = true;
+        AttachStateChanged?.Invoke();
+        return true;
+    }
+
+    private bool InjectOneDll(IntPtr hProcess, string dllPath)
+    {
+        IntPtr pLoadLibrary = NativeMethods.GetProcAddress(NativeMethods.GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+        if (pLoadLibrary == IntPtr.Zero) { LastInjectionFailure = "GetProcAddress failed."; return false; }
+        byte[] pathBytes = System.Text.Encoding.ASCII.GetBytes(dllPath + "\0");
+        IntPtr remoteMem = NativeMethods.VirtualAllocEx(hProcess, IntPtr.Zero, (uint)pathBytes.Length, NativeMethods.MEM_COMMIT | NativeMethods.MEM_RESERVE, NativeMethods.PAGE_READWRITE);
+        if (remoteMem == IntPtr.Zero) { LastInjectionFailure = "VirtualAllocEx failed."; return false; }
+        if (!NativeMethods.WriteProcessMemory(hProcess, remoteMem, pathBytes, (uint)pathBytes.Length, out _))
+        {
+            NativeMethods.VirtualFreeEx(hProcess, remoteMem, 0, 0x8000);
+            LastInjectionFailure = "WriteProcessMemory failed.";
+            return false;
+        }
+        IntPtr hThread = NativeMethods.CreateRemoteThread(hProcess, IntPtr.Zero, 0, pLoadLibrary, remoteMem, 0, IntPtr.Zero);
+        if (hThread == IntPtr.Zero)
+        {
+            uint rt = NativeMethods.RtlCreateUserThread(hProcess, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, pLoadLibrary, remoteMem, out hThread, out _);
+            if (rt != 0 || hThread == IntPtr.Zero)
+            {
+                NativeMethods.VirtualFreeEx(hProcess, remoteMem, 0, 0x8000);
+                LastInjectionFailure = "CreateRemoteThread failed.";
+                return false;
+            }
+        }
+        NativeMethods.CloseHandle(hThread);
+        return true;
+    }
+
+    private List<IntPtr> SuspendOrResumeAllThreads(uint processId, bool suspend, List<IntPtr>? existingHandles = null)
+    {
+        var handles = new List<IntPtr>();
+        if (!suspend && existingHandles != null)
+        {
+            foreach (var h in existingHandles)
+            {
+                NativeMethods.ResumeThread(h);
+                NativeMethods.CloseHandle(h);
+            }
+            return handles;
+        }
+        IntPtr snap = NativeMethods.CreateToolhelp32Snapshot(NativeMethods.TH32CS_SNAPTHREAD, 0);
+        if (snap == IntPtr.Zero || snap.ToInt64() == -1) return handles;
+        try
+        {
+            var te = new NativeMethods.THREADENTRY32 { dwSize = (uint)Marshal.SizeOf<NativeMethods.THREADENTRY32>() };
+            if (!NativeMethods.Thread32First(snap, ref te)) return handles;
+            do
+            {
+                if (te.th32OwnerProcessID != processId) continue;
+                IntPtr hThread = NativeMethods.OpenThread(NativeMethods.THREAD_SUSPEND_RESUME, false, te.th32ThreadID);
+                if (hThread == IntPtr.Zero) continue;
+                NativeMethods.SuspendThread(hThread);
+                handles.Add(hThread);
+            } while (NativeMethods.Thread32Next(snap, ref te));
+        }
+        finally
+        {
+            NativeMethods.CloseHandle(snap);
+        }
+        return handles;
+    }
+
     public void Detach()
     {
         CloseWriteHandle();

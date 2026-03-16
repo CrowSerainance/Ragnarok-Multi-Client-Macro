@@ -10,6 +10,7 @@ public sealed class MacroExecutor
     private readonly BackgroundInputDispatcher _inputDispatcher;
     private readonly HotkeyRouter _hotkeyRouter;
     private readonly SemaphoreSlim _executionGate = new(1, 1);
+    private readonly Random _random = new();
 
     public MacroExecutor(ClientBindingService bindingService, BackgroundInputDispatcher inputDispatcher, HotkeyRouter hotkeyRouter)
     {
@@ -59,26 +60,25 @@ public sealed class MacroExecutor
                 await Task.Delay(binding.PostInputDelayMs, cancellationToken).ConfigureAwait(false);
             }
 
-            var trace = profile.TraceSequences.FirstOrDefault(x => x.Id == binding.TraceSequenceId);
-            var points = trace?.Points.Select(point => point.Clone()).ToArray() ?? Array.Empty<NormalizedPoint>();
-            if (points.Length == 0)
-            {
-                return $"{profile.DisplayName}: {binding.Name} - key sent ({HotkeyText.Normalize(inputKeyToSend)}), no click executed because the selected sequence has no points.";
-            }
+            var center = CellMath.CenterOf(liveWindow.ClientWidth, liveWindow.ClientHeight);
+            int clickCount = binding.ClickCount;
 
-            for (int i = 0; i < points.Length; i++)
+            for (int i = 0; i < clickCount; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var pixel = CoordinateTranslator.ToPixel(points[i], liveWindow.ClientWidth, liveWindow.ClientHeight);
-                _inputDispatcher.SendClick(liveWindow, pixel.X, pixel.Y, config);
+                var offset = CellMath.SampleRandomCellOffset(binding.CellRadius, _random);
+                var target = CellMath.ApplyOffset(center, offset);
+                int clampedX = Math.Clamp(target.X, 0, liveWindow.ClientWidth);
+                int clampedY = Math.Clamp(target.Y, 0, liveWindow.ClientHeight);
+                _inputDispatcher.SendClick(liveWindow, clampedX, clampedY, config);
 
-                if (i < points.Length - 1 && binding.InterClickDelayMs > 0)
+                if (i < clickCount - 1 && binding.InterClickDelayMs > 0)
                 {
                     await Task.Delay(binding.InterClickDelayMs, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            return $"{profile.DisplayName}: {binding.Name} executed ({points.Length} click{(points.Length == 1 ? string.Empty : "s")}).";
+            return $"{profile.DisplayName}: {binding.Name} executed ({clickCount} cell click{(clickCount == 1 ? string.Empty : "s")}, radius {binding.CellRadius}).";
         }
         finally
         {

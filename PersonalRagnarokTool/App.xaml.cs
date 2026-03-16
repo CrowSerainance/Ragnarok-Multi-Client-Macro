@@ -21,7 +21,6 @@ public partial class App : System.Windows.Application
         var attachmentService = new ProcessAttachmentService();
         var memoryService = new MemoryService(attachmentService);
         var bindingService = new ClientBindingService(discoveryService, attachmentService);
-        var previewService = new ClientPreviewService(bindingService);
         var hotkeyService = new GlobalHotkeyService();
         var macroExecutor = new MacroExecutor(bindingService, new BackgroundInputDispatcher(memoryService, attachmentService), new HotkeyRouter());
 
@@ -30,7 +29,6 @@ public partial class App : System.Windows.Application
             configStore,
             discoveryService,
             bindingService,
-            previewService,
             hotkeyService,
             macroExecutor);
 
