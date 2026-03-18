@@ -42,6 +42,11 @@ public static class BindingValidator
                 binding.ClientProfileId = profile.Id;
                 binding.TriggerHotkey = HotkeyText.Normalize(binding.TriggerHotkey);
                 binding.InputKey = HotkeyText.Normalize(binding.InputKey);
+
+                foreach (var step in binding.MacroSteps)
+                {
+                    step.Key = HotkeyText.Normalize(step.Key);
+                }
             }
         }
     }

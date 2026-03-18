@@ -69,7 +69,7 @@ public sealed class BackgroundInputDispatcher
         return true;
     }
 
-    public void SendClick(ClientWindowRef window, int clientX, int clientY, AppConfig config)
+    public void SendClick(ClientWindowRef window, int clientX, int clientY, AppConfig config, InputMethod? methodOverride = null)
     {
         IntPtr gameHwnd = ResolveGameWindowHandle(window);
         if (gameHwnd == IntPtr.Zero || !NativeMethods.IsWindow(gameHwnd))
@@ -86,7 +86,9 @@ public sealed class BackgroundInputDispatcher
             _memoryService.WriteUInt32(IntPtr.Add(_memoryService.BaseAddress, config.MousePosYAddress), (uint)clientY);
         }
 
-        if (config.InputMethod == InputMethod.PostMessage)
+        var effectiveMethod = methodOverride ?? config.InputMethod;
+
+        if (effectiveMethod == InputMethod.PostMessage)
         {
             PostMessageClick(gameHwnd, clientX, clientY);
         }
@@ -237,33 +239,90 @@ public sealed class BackgroundInputDispatcher
 
     private IntPtr ResolveGameWindowHandle(ClientWindowRef window)
     {
+        IntPtr candidateRoot = IntPtr.Zero;
+
         // 1. If the global attachment matches this target, prefer its handle
         //    (it may have been refreshed more recently).
         if (_attachmentService.IsAttached && _attachmentService.ProcessId == window.ProcessId)
         {
             IntPtr attachedHandle = _attachmentService.WindowHandle;
             if (attachedHandle != IntPtr.Zero && NativeMethods.IsWindow(attachedHandle))
-                return attachedHandle;
+                candidateRoot = attachedHandle;
         }
 
         // 2. Use the handle stored in the ClientWindowRef (set at bind time).
-        IntPtr directHandle = new(window.WindowHandle);
-        if (directHandle != IntPtr.Zero && NativeMethods.IsWindow(directHandle))
-            return directHandle;
+        if (candidateRoot == IntPtr.Zero)
+        {
+            IntPtr directHandle = new(window.WindowHandle);
+            if (directHandle != IntPtr.Zero && NativeMethods.IsWindow(directHandle))
+                candidateRoot = directHandle;
+        }
 
         // 3. Last resort: enumerate top-level windows for the process.
-        IntPtr resolvedHandle = IntPtr.Zero;
-        NativeMethods.EnumWindows((hWnd, _) =>
+        if (candidateRoot == IntPtr.Zero)
         {
-            NativeMethods.GetWindowThreadProcessId(hWnd, out uint processId);
-            if (processId == (uint)window.ProcessId)
+            NativeMethods.EnumWindows((hWnd, _) =>
             {
-                resolvedHandle = hWnd;
-                return false;
+                NativeMethods.GetWindowThreadProcessId(hWnd, out uint processId);
+                if (processId == (uint)window.ProcessId)
+                {
+                    candidateRoot = hWnd;
+                    return false;
+                }
+                return true;
+            }, IntPtr.Zero);
+        }
+
+        if (candidateRoot == IntPtr.Zero)
+            return IntPtr.Zero;
+
+        return ResolveBestInputHandle(candidateRoot, window.ProcessId);
+    }
+
+    private IntPtr ResolveBestInputHandle(IntPtr rootHandle, int expectedProcessId)
+    {
+        IntPtr bestChildHandle = IntPtr.Zero;
+        int bestChildArea = -1;
+
+        NativeMethods.EnumChildWindows(rootHandle, (hWnd, _) =>
+        {
+            if (!TryGetCandidateClientArea(hWnd, expectedProcessId, out int area))
+                return true;
+
+            if (area > bestChildArea)
+            {
+                bestChildArea = area;
+                bestChildHandle = hWnd;
             }
+
             return true;
         }, IntPtr.Zero);
 
-        return resolvedHandle;
+        if (bestChildHandle != IntPtr.Zero)
+            return bestChildHandle;
+
+        return TryGetCandidateClientArea(rootHandle, expectedProcessId, out _) ? rootHandle : IntPtr.Zero;
+    }
+
+    private static bool TryGetCandidateClientArea(IntPtr hWnd, int expectedProcessId, out int area)
+    {
+        area = 0;
+        if (!NativeMethods.IsWindow(hWnd) || !NativeMethods.IsWindowVisible(hWnd))
+            return false;
+
+        NativeMethods.GetWindowThreadProcessId(hWnd, out uint processId);
+        if (processId != (uint)expectedProcessId)
+            return false;
+
+        if (!NativeMethods.GetClientRect(hWnd, out var rect))
+            return false;
+
+        int width = rect.Right - rect.Left;
+        int height = rect.Bottom - rect.Top;
+        if (width < 64 || height < 64)
+            return false;
+
+        area = width * height;
+        return true;
     }
 }

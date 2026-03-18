@@ -23,6 +23,7 @@ public sealed class GlobalHotkeyService
     {
         UnregisterAll();
         var errors = new List<string>();
+        var seenHotkeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (_windowHandle == IntPtr.Zero)
         {
             errors.Add("Window handle is not ready for hotkey registration.");
@@ -35,6 +36,12 @@ public sealed class GlobalHotkeyService
             if (!VirtualKeyMap.TryGetVirtualKey(normalizedHotkey, out int vk))
             {
                 errors.Add($"Unsupported hotkey '{binding.TriggerHotkey}' for {binding.Name}.");
+                continue;
+            }
+
+            if (!seenHotkeys.Add(normalizedHotkey))
+            {
+                errors.Add($"Duplicate hotkey '{binding.TriggerHotkey}' for {binding.Name}.");
                 continue;
             }
 

@@ -5,6 +5,7 @@ namespace PersonalRagnarokTool.Core.Geometry;
 public static class CellMath
 {
     public const int PixelsPerCell = 32;
+    public const int DirectionalClickPixels = 100;
 
     public static readonly int[] AllowedRadii = { 5, 8, 10 };
 
@@ -43,4 +44,13 @@ public static class CellMath
 
     public static PixelPoint ApplyOffset(PixelPoint center, PixelPoint offset)
         => new(center.X + offset.X, center.Y + offset.Y);
+
+    public static PixelPoint DirectionalOffset(ClickDirection direction, int pixelDistance) => direction switch
+    {
+        ClickDirection.Up => new(0, -pixelDistance),
+        ClickDirection.Down => new(0, pixelDistance),
+        ClickDirection.Left => new(-pixelDistance, 0),
+        ClickDirection.Right => new(pixelDistance, 0),
+        _ => new(0, 0)
+    };
 }

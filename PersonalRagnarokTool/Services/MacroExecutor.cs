@@ -46,39 +46,82 @@ public sealed class MacroExecutor
                 return $"{profile.DisplayName}: no live client window found. Re-bind the client profile.";
             }
 
-            string inputKeyToSend = string.IsNullOrWhiteSpace(binding.InputKey)
-                ? binding.TriggerHotkey
-                : binding.InputKey;
-
-            if (!_inputDispatcher.SendInputKey(liveWindow, inputKeyToSend, config, out string inputStatus))
+            // Phase 1: Key sending — macro sequence or single key
+            int keysSent = 0;
+            if (binding.MacroSteps.Count > 0)
             {
-                return $"{profile.DisplayName}: key send failed - {inputStatus}";
-            }
-
-            if (binding.PostInputDelayMs > 0)
-            {
-                await Task.Delay(binding.PostInputDelayMs, cancellationToken).ConfigureAwait(false);
-            }
-
-            var center = CellMath.CenterOf(liveWindow.ClientWidth, liveWindow.ClientHeight);
-            int clickCount = binding.ClickCount;
-
-            for (int i = 0; i < clickCount; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var offset = CellMath.SampleRandomCellOffset(binding.CellRadius, _random);
-                var target = CellMath.ApplyOffset(center, offset);
-                int clampedX = Math.Clamp(target.X, 0, liveWindow.ClientWidth);
-                int clampedY = Math.Clamp(target.Y, 0, liveWindow.ClientHeight);
-                _inputDispatcher.SendClick(liveWindow, clampedX, clampedY, config);
-
-                if (i < clickCount - 1 && binding.InterClickDelayMs > 0)
+                foreach (var step in binding.MacroSteps)
                 {
-                    await Task.Delay(binding.InterClickDelayMs, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (_inputDispatcher.SendInputKey(liveWindow, step.Key, config, out _))
+                        keysSent++;
+
+                    if (step.DelayMs > 0)
+                        await Task.Delay(step.DelayMs, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                string inputKeyToSend = string.IsNullOrWhiteSpace(binding.InputKey)
+                    ? binding.TriggerHotkey
+                    : binding.InputKey;
+
+                if (!_inputDispatcher.SendInputKey(liveWindow, inputKeyToSend, config, out string inputStatus))
+                {
+                    return $"{profile.DisplayName}: key send failed - {inputStatus}";
+                }
+                keysSent = 1;
+
+                // Phase 2: Post-input delay (single-key path only)
+                if (binding.PostInputDelayMs > 0)
+                {
+                    await Task.Delay(binding.PostInputDelayMs, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            return $"{profile.DisplayName}: {binding.Name} executed ({clickCount} cell click{(clickCount == 1 ? string.Empty : "s")}, radius {binding.CellRadius}).";
+            // Phase 3: Clicking — directional (forced SendInput) or random-cell-offset
+            var center = CellMath.CenterOf(liveWindow.ClientWidth, liveWindow.ClientHeight);
+            int clickCount = binding.ClickCount;
+
+            if (binding.ClickDirection != ClickDirection.None)
+            {
+                var dirOffset = CellMath.DirectionalOffset(binding.ClickDirection, CellMath.DirectionalClickPixels);
+                var target = CellMath.ApplyOffset(center, dirOffset);
+                int clampedX = Math.Clamp(target.X, 0, liveWindow.ClientWidth);
+                int clampedY = Math.Clamp(target.Y, 0, liveWindow.ClientHeight);
+
+                for (int i = 0; i < clickCount; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _inputDispatcher.SendClick(liveWindow, clampedX, clampedY, config);
+
+                    if (i < clickCount - 1 && binding.InterClickDelayMs > 0)
+                    {
+                        await Task.Delay(binding.InterClickDelayMs, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                return $"{profile.DisplayName}: {binding.Name} executed ({keysSent} key{(keysSent == 1 ? "" : "s")}, {clickCount} click{(clickCount == 1 ? "" : "s")} {binding.ClickDirection} via {config.InputMethod}).";
+            }
+            else
+            {
+                for (int i = 0; i < clickCount; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var offset = CellMath.SampleRandomCellOffset(binding.CellRadius, _random);
+                    var target = CellMath.ApplyOffset(center, offset);
+                    int clampedX = Math.Clamp(target.X, 0, liveWindow.ClientWidth);
+                    int clampedY = Math.Clamp(target.Y, 0, liveWindow.ClientHeight);
+                    _inputDispatcher.SendClick(liveWindow, clampedX, clampedY, config);
+
+                    if (i < clickCount - 1 && binding.InterClickDelayMs > 0)
+                    {
+                        await Task.Delay(binding.InterClickDelayMs, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                return $"{profile.DisplayName}: {binding.Name} executed ({keysSent} key{(keysSent == 1 ? "" : "s")}, {clickCount} cell click{(clickCount == 1 ? "" : "s")}, radius {binding.CellRadius}).";
+            }
         }
         finally
         {

@@ -21,6 +21,12 @@ public sealed class ConfigAndRoutingTests
                 InputKey = "1",
                 CellRadius = 8,
                 ClickCount = 3,
+                ClickDirection = ClickDirection.Right,
+                MacroSteps =
+                {
+                    new MacroStep { Key = "f2", DelayMs = 90 },
+                    new MacroStep { Key = "q", DelayMs = 140 },
+                },
             });
             config.ClientProfiles.Add(profile);
 
@@ -33,6 +39,19 @@ public sealed class ConfigAndRoutingTests
             Assert.Equal("F1", loaded.ClientProfiles[0].Bindings[0].TriggerHotkey);
             Assert.Equal(8, loaded.ClientProfiles[0].Bindings[0].CellRadius);
             Assert.Equal(3, loaded.ClientProfiles[0].Bindings[0].ClickCount);
+            Assert.Equal(ClickDirection.Right, loaded.ClientProfiles[0].Bindings[0].ClickDirection);
+            Assert.Collection(
+                loaded.ClientProfiles[0].Bindings[0].MacroSteps,
+                step =>
+                {
+                    Assert.Equal("F2", step.Key);
+                    Assert.Equal(90, step.DelayMs);
+                },
+                step =>
+                {
+                    Assert.Equal("Q", step.Key);
+                    Assert.Equal(140, step.DelayMs);
+                });
         }
         finally
         {
@@ -97,6 +116,37 @@ public sealed class ConfigAndRoutingTests
         Assert.Equal("F4", binding.TriggerHotkey);
         Assert.Equal(10, binding.CellRadius);
         Assert.Equal(config.ClientProfiles[0].Id, binding.ClientProfileId);
+    }
+
+    [Fact]
+    public void BindingValidator_NormalizesMacroStepKeys()
+    {
+        var config = CreateConfig();
+        config.ClientProfiles[0].Bindings.Add(new MacroBinding
+        {
+            Name = "Buff Sequence",
+            TriggerHotkey = "f5",
+            InputKey = "spacebar",
+            ClickDirection = ClickDirection.Up,
+            MacroSteps =
+            {
+                new MacroStep { Key = "f7", DelayMs = 120 },
+                new MacroStep { Key = "num1", DelayMs = 60 },
+                new MacroStep { Key = "e", DelayMs = 30 },
+            },
+        });
+
+        BindingValidator.NormalizeConfig(config);
+
+        var binding = config.ClientProfiles[0].Bindings[0];
+        Assert.Equal("F5", binding.TriggerHotkey);
+        Assert.Equal("Space", binding.InputKey);
+        Assert.Equal(ClickDirection.Up, binding.ClickDirection);
+        Assert.Collection(
+            binding.MacroSteps,
+            step => Assert.Equal("F7", step.Key),
+            step => Assert.Equal("Num1", step.Key),
+            step => Assert.Equal("E", step.Key));
     }
 
     [Theory]

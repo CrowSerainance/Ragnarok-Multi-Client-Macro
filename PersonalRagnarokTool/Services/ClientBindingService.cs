@@ -1,3 +1,5 @@
+using System.IO;
+using System.Threading.Tasks;
 using PersonalRagnarokTool.Core.Models;
 using PersonalRagnarokTool.Core.Services;
 
@@ -13,9 +15,29 @@ public sealed class ClientBindingService
         _discoveryService = discoveryService;
         _attachmentService = attachmentService;
     }
-    public void BindProfile(ClientProfile profile, ClientWindowRef liveWindow)
+    public async Task BindProfileAsync(ClientProfile profile, ClientWindowRef liveWindow)
     {
-        bool attached = _attachmentService.Attach(liveWindow.ProcessId, new IntPtr(liveWindow.WindowHandle));
+        string baseDir = AppContext.BaseDirectory;
+        string coldHidePath = Path.Combine(baseDir, "ColdHide.dll");
+        string heavensGatePath = Path.Combine(baseDir, "HEAVENSGATE.DLL");
+        string dll1Path = Path.Combine(baseDir, "Dll1.dll");
+
+        bool attached;
+        // If we have all the stealth DLLs, use the suspend-inject-resume flow (matching Simple Ragnarok Program's stealth).
+        if (File.Exists(coldHidePath) && File.Exists(heavensGatePath) && File.Exists(dll1Path))
+        {
+            attached = await _attachmentService.AttachSuspendInjectBothConnectResumeAsync(
+                liveWindow.ProcessId,
+                heavensGatePath,
+                dll1Path,
+                () => Task.FromResult(true), // Tool currently uses background input, not the Dll1 pipe, but we inject Dll1 for completeness/hiding.
+                coldHidePath);
+        }
+        else
+        {
+            attached = _attachmentService.Attach(liveWindow.ProcessId, new IntPtr(liveWindow.WindowHandle));
+        }
+
         profile.BoundWindow = CloneWindow(liveWindow);
         ApplyRuntimeStatus(profile, new ClientWindowMatchResult(
             ClientWindowMatchKind.ExactHandle,

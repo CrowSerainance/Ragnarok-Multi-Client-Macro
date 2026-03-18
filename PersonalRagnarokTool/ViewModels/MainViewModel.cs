@@ -21,6 +21,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly AppConfig _config;
     private ClientProfile? _selectedClient;
     private MacroBinding? _selectedBinding;
+    private MacroStep? _selectedMacroStep;
     private ClientWindowRef? _selectedAvailableWindow;
     private string _statusMessage = "Ready.";
     private string _hotkeyStatus = "Hotkeys are waiting for registration.";
@@ -52,6 +53,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ResolveSelectedClientCommand = new RelayCommand(ResolveSelectedClient, () => SelectedClient?.BoundWindow is not null);
         AddBindingCommand = new RelayCommand(AddBinding, () => SelectedClient is not null);
         RemoveBindingCommand = new RelayCommand(RemoveSelectedBinding, () => SelectedBinding is not null);
+        AddMacroStepCommand = new RelayCommand(AddMacroStep, () => SelectedBinding is not null);
+        RemoveMacroStepCommand = new RelayCommand(RemoveMacroStep, () => SelectedMacroStep is not null);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         AttachConfigSubscriptions();
         _hotkeyService.HotkeyPressed += OnHotkeyPressed;
@@ -63,6 +66,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ClientProfile> ClientProfiles => _config.ClientProfiles;
     public ObservableCollection<ClientWindowRef> AvailableWindows { get; }
     public InputMethod[] InputMethods => Enum.GetValues<InputMethod>();
+    public ClickDirection[] ClickDirections => Enum.GetValues<ClickDirection>();
     public int[] CellRadiusOptions => CellMath.AllowedRadii;
     public InputMethod SelectedInputMethod { get => _config.InputMethod; set { if (_config.InputMethod != value) { _config.InputMethod = value; RaisePropertyChanged(); SaveConfig(); } } }
     public RelayCommand AddClientCommand { get; }
@@ -74,9 +78,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ResolveSelectedClientCommand { get; }
     public RelayCommand AddBindingCommand { get; }
     public RelayCommand RemoveBindingCommand { get; }
+    public RelayCommand AddMacroStepCommand { get; }
+    public RelayCommand RemoveMacroStepCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
     public ClientProfile? SelectedClient { get => _selectedClient; set { if (SetProperty(ref _selectedClient, value)) { SelectedBinding = value?.Bindings.FirstOrDefault(); SelectedAvailableWindow = FindMatchingAvailableWindow(value?.BoundWindow); RefreshSelectedClientRuntimeState(true); RefreshCommandStates(); } } }
     public MacroBinding? SelectedBinding { get => _selectedBinding; set { if (SetProperty(ref _selectedBinding, value)) { RefreshBindingEditorFields(); RefreshCommandStates(); } } }
+    public MacroStep? SelectedMacroStep { get => _selectedMacroStep; set { if (SetProperty(ref _selectedMacroStep, value)) RefreshCommandStates(); } }
     public ClientWindowRef? SelectedAvailableWindow { get => _selectedAvailableWindow; set { if (SetProperty(ref _selectedAvailableWindow, value)) RefreshCommandStates(); } }
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
     public string HotkeyStatus { get => _hotkeyStatus; private set => SetProperty(ref _hotkeyStatus, value); }
@@ -98,6 +105,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedBindingPostInputDelayText = SelectedBinding?.PostInputDelayMs.ToString() ?? string.Empty;
         SelectedBindingInterClickDelayText = SelectedBinding?.InterClickDelayMs.ToString() ?? string.Empty;
         SelectedBindingClickCountText = SelectedBinding?.ClickCount.ToString() ?? string.Empty;
+        SelectedMacroStep = SelectedBinding?.MacroSteps.FirstOrDefault();
         BindingEditorValidationMessage = string.Empty;
         _isUpdatingBindingEditorFields = false;
     }
@@ -138,11 +146,31 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void RemoveSelectedClient() { if (SelectedClient is null) return; int index = ClientProfiles.IndexOf(SelectedClient); string displayName = SelectedClient.DisplayName; ClientProfiles.Remove(SelectedClient); SelectedClient = ClientProfiles.Count == 0 ? null : ClientProfiles[Math.Clamp(index - 1, 0, ClientProfiles.Count - 1)]; StatusMessage = $"{displayName} removed."; }
     private void SaveConfig() { _configStore.Save(_configPath, _config); RefreshAllClientRuntimeStates(false); RefreshHotkeys(); StatusMessage = $"Configuration saved to {_configPath}."; }
     private void RefreshWindows() { AvailableWindows.Clear(); foreach (var window in _discoveryService.DiscoverWindows()) AvailableWindows.Add(window); RefreshAllClientRuntimeStates(true); SelectedAvailableWindow = FindMatchingAvailableWindow(SelectedClient?.BoundWindow) ?? AvailableWindows.FirstOrDefault(); StatusMessage = AvailableWindows.Count == 0 ? "No windows discovered." : $"Discovered {AvailableWindows.Count} window(s). Selected client status: {SelectedClientBindingStatus}."; }
-    private void BindSelectedClient() { if (SelectedClient is null || SelectedAvailableWindow is null) return; _bindingService.BindProfile(SelectedClient, SelectedAvailableWindow); RefreshSelectedClientRuntimeState(true); SelectedAvailableWindow = FindMatchingAvailableWindow(SelectedClient.BoundWindow); StatusMessage = $"{SelectedClient.DisplayName} bound to {SelectedClient.BoundWindowDisplayText}."; }
+    private async void BindSelectedClient() { if (SelectedClient is null || SelectedAvailableWindow is null) return; await _bindingService.BindProfileAsync(SelectedClient, SelectedAvailableWindow); RefreshSelectedClientRuntimeState(true); SelectedAvailableWindow = FindMatchingAvailableWindow(SelectedClient.BoundWindow); StatusMessage = $"{SelectedClient.DisplayName} bound to {SelectedClient.BoundWindowDisplayText}."; }
     private void UnbindSelectedClient() { if (SelectedClient is null) return; _bindingService.ClearBinding(SelectedClient); RefreshSelectedClientRuntimeState(false); StatusMessage = $"{SelectedClient.DisplayName} unbound from any client window."; }
     private void ResolveSelectedClient() { if (SelectedClient is null) return; RefreshSelectedClientRuntimeState(true); StatusMessage = $"{SelectedClient.DisplayName}: {SelectedClientBindingDetail}"; }
     private void AddBinding() { if (SelectedClient is null) return; var binding = new MacroBinding { ClientProfileId = SelectedClient.Id, Name = $"{SelectedClient.DisplayName} Binding {SelectedClient.Bindings.Count + 1}" }; SelectedClient.Bindings.Add(binding); SelectedBinding = binding; StatusMessage = $"{SelectedClient.DisplayName}: binding '{binding.Name}' added."; }
     private void RemoveSelectedBinding() { if (SelectedClient is null || SelectedBinding is null) return; string name = SelectedBinding.Name; SelectedClient.Bindings.Remove(SelectedBinding); SelectedBinding = SelectedClient.Bindings.FirstOrDefault(); StatusMessage = $"{SelectedClient.DisplayName}: binding '{name}' removed."; }
+    private void AddMacroStep()
+    {
+        if (SelectedBinding is null) return;
+        var step = new MacroStep
+        {
+            Key = string.IsNullOrWhiteSpace(SelectedBinding.InputKey) ? "F1" : SelectedBinding.InputKey,
+            DelayMs = SelectedBinding.PostInputDelayMs,
+        };
+        SelectedBinding.MacroSteps.Add(step);
+        SelectedMacroStep = step;
+        StatusMessage = $"{SelectedBinding.Name}: macro step added.";
+    }
+    private void RemoveMacroStep()
+    {
+        if (SelectedBinding is null || SelectedMacroStep is null) return;
+        string key = HotkeyText.Normalize(SelectedMacroStep.Key);
+        SelectedBinding.MacroSteps.Remove(SelectedMacroStep);
+        SelectedMacroStep = SelectedBinding.MacroSteps.FirstOrDefault();
+        StatusMessage = $"{SelectedBinding.Name}: macro step '{key}' removed.";
+    }
 
     private void AttachConfigSubscriptions() { ClientProfiles.CollectionChanged += OnProfilesCollectionChanged; foreach (var profile in ClientProfiles) AttachProfileSubscriptions(profile); }
     private void OnProfilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { if (e.NewItems is not null) foreach (ClientProfile profile in e.NewItems) AttachProfileSubscriptions(profile); if (e.OldItems is not null) foreach (ClientProfile profile in e.OldItems) DetachProfileSubscriptions(profile); BindingValidator.NormalizeConfig(_config); RefreshHotkeys(); RefreshCommandStates(); }
@@ -156,14 +184,37 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         BindingValidator.NormalizeConfig(_config);
         if (!_hotkeyService.IsReady) { HotkeyStatus = "Hotkeys will register when the main window is ready."; return; }
-        var duplicates = BindingValidator.GetDuplicateHotkeys(_config);
-        if (duplicates.Count > 0) { _hotkeyService.UnregisterAll(); HotkeyStatus = $"Duplicate hotkeys: {string.Join(", ", duplicates)}"; return; }
-        var errors = _hotkeyService.RegisterBindings(ClientProfiles.SelectMany(profile => profile.Bindings));
-        HotkeyStatus = errors.Count == 0 ? "Global hotkeys registered." : string.Join(" | ", errors);
+        var liveBindings = ClientProfiles
+            .Where(profile => profile.IsEnabled && profile.HasLiveWindow)
+            .SelectMany(profile => profile.Bindings.Where(binding => binding.IsEnabled))
+            .ToArray();
+        int skippedBindings = ClientProfiles
+            .Where(profile => !profile.IsEnabled || !profile.HasLiveWindow)
+            .SelectMany(profile => profile.Bindings.Where(binding => binding.IsEnabled))
+            .Count();
+
+        var errors = _hotkeyService.RegisterBindings(liveBindings);
+        var statusParts = new List<string>();
+        if (liveBindings.Length == 0)
+        {
+            statusParts.Add("No hotkeys registered because no enabled client is bound to a live window.");
+        }
+        else if (errors.Count == 0)
+        {
+            statusParts.Add($"Registered {liveBindings.Length} hotkey(s) for live clients.");
+        }
+
+        if (skippedBindings > 0)
+        {
+            statusParts.Add($"Skipped {skippedBindings} binding(s) without a live bound client.");
+        }
+
+        statusParts.AddRange(errors);
+        HotkeyStatus = string.Join(" | ", statusParts);
     }
 
     private async void OnHotkeyPressed(object? sender, string hotkey) { string status = await _macroExecutor.ExecuteHotkeyAsync(_config, hotkey); await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => StatusMessage = status); }
     private ClientWindowRef? FindMatchingAvailableWindow(ClientWindowRef? boundWindow) => boundWindow is null ? null : AvailableWindows.FirstOrDefault(window => window.WindowHandle == boundWindow.WindowHandle) ?? AvailableWindows.FirstOrDefault(window => window.ProcessId == boundWindow.ProcessId && string.Equals(window.WindowTitle, boundWindow.WindowTitle, StringComparison.OrdinalIgnoreCase)) ?? AvailableWindows.FirstOrDefault(window => window.ProcessId == boundWindow.ProcessId);
-    private void RefreshCommandStates() { RemoveSelectedClientCommand.RaiseCanExecuteChanged(); BindSelectedClientCommand.RaiseCanExecuteChanged(); UnbindSelectedClientCommand.RaiseCanExecuteChanged(); ResolveSelectedClientCommand.RaiseCanExecuteChanged(); AddBindingCommand.RaiseCanExecuteChanged(); RemoveBindingCommand.RaiseCanExecuteChanged(); }
+    private void RefreshCommandStates() { RemoveSelectedClientCommand.RaiseCanExecuteChanged(); BindSelectedClientCommand.RaiseCanExecuteChanged(); UnbindSelectedClientCommand.RaiseCanExecuteChanged(); ResolveSelectedClientCommand.RaiseCanExecuteChanged(); AddBindingCommand.RaiseCanExecuteChanged(); RemoveBindingCommand.RaiseCanExecuteChanged(); AddMacroStepCommand.RaiseCanExecuteChanged(); RemoveMacroStepCommand.RaiseCanExecuteChanged(); }
     public void Dispose() { SaveConfig(); _hotkeyService.HotkeyPressed -= OnHotkeyPressed; _hotkeyService.UnregisterAll(); }
 }

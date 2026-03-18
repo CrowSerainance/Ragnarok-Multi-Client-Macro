@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using PersonalRagnarokTool.Core.Infrastructure;
 
 namespace PersonalRagnarokTool.Core.Models;
@@ -74,4 +75,14 @@ public sealed class MacroBinding : ObservableObject
         get => _clickCount;
         set => SetProperty(ref _clickCount, Math.Max(1, value));
     }
+
+    private ClickDirection _clickDirection = ClickDirection.None;
+
+    public ClickDirection ClickDirection
+    {
+        get => _clickDirection;
+        set => SetProperty(ref _clickDirection, value);
+    }
+
+    public ObservableCollection<MacroStep> MacroSteps { get; set; } = new();
 }

@@ -484,60 +484,154 @@
 
                             <Grid Grid.Row="2"
                                   IsEnabled="{Binding SelectedBinding, Converter={StaticResource NullToBoolean}}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                                <StackPanel Margin="0,0,12,0">
-                                    <TextBlock Text="Binding name" Foreground="{StaticResource InkBrush}" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBinding.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    <CheckBox Content="binding enabled"
-                                              IsChecked="{Binding SelectedBinding.IsEnabled, Mode=TwoWay}"
-                                              Foreground="{StaticResource InkBrush}"
-                                              Margin="0,10,0,0" />
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="Trigger hotkey" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBinding.TriggerHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             infra:HotkeyCapture.IsEnabled="True" />
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="Binding name" Foreground="{StaticResource InkBrush}" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBinding.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <CheckBox Content="binding enabled"
+                                                  IsChecked="{Binding SelectedBinding.IsEnabled, Mode=TwoWay}"
+                                                  Foreground="{StaticResource InkBrush}"
+                                                  Margin="0,10,0,0" />
 
-                                    <TextBlock Text="Input key sent to target client" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBinding.InputKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             infra:HotkeyCapture.IsEnabled="True" />
-                                </StackPanel>
+                                        <TextBlock Text="Trigger hotkey" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBinding.TriggerHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 infra:HotkeyCapture.IsEnabled="True" />
 
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Cell radius (cells from center)" Foreground="{StaticResource InkBrush}" />
-                                    <ComboBox Style="{StaticResource EditorComboBoxStyle}"
-                                              ItemsSource="{Binding CellRadiusOptions}"
-                                              SelectedItem="{Binding SelectedBinding.CellRadius, Mode=TwoWay}" />
+                                        <TextBlock Text="Input key sent to target client" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBinding.InputKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 infra:HotkeyCapture.IsEnabled="True" />
 
-                                    <TextBlock Text="Click count" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBindingClickCountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             infra:NumericTextBoxBehavior.IsEnabled="True"
-                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+                                        <TextBlock Text="Macro steps" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBlock Text="Use this when one trigger should send multiple client-side keys in order. Step keys can be F1 to F9 or normal keyboard keys."
+                                                   Foreground="{StaticResource MutedInkBrush}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="12"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
 
-                                    <TextBlock Text="Post-input delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBindingPostInputDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             infra:NumericTextBoxBehavior.IsEnabled="True"
-                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Cell radius (cells from center)" Foreground="{StaticResource InkBrush}" />
+                                        <ComboBox Style="{StaticResource EditorComboBoxStyle}"
+                                                  ItemsSource="{Binding CellRadiusOptions}"
+                                                  SelectedItem="{Binding SelectedBinding.CellRadius, Mode=TwoWay}" />
 
-                                    <TextBlock Text="Inter-click delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
-                                    <TextBox Style="{StaticResource EditorTextBoxStyle}"
-                                             Text="{Binding SelectedBindingInterClickDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             infra:NumericTextBoxBehavior.IsEnabled="True"
-                                             infra:NumericTextBoxBehavior.AllowBlank="False" />
+                                        <TextBlock Text="Internal click direction" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <ComboBox Style="{StaticResource EditorComboBoxStyle}"
+                                                  ItemsSource="{Binding ClickDirections}"
+                                                  SelectedItem="{Binding SelectedBinding.ClickDirection, Mode=TwoWay}" />
 
-                                    <TextBlock Text="{Binding BindingEditorValidationMessage}"
-                                               Foreground="{StaticResource AlertBrush}"
-                                               Margin="0,10,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
+                                        <TextBlock Text="Click count" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBindingClickCountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
+                                                 infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                        <TextBlock Text="Post-input delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBindingPostInputDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
+                                                 infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                        <TextBlock Text="Inter-click delay (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                        <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                 Text="{Binding SelectedBindingInterClickDelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 infra:NumericTextBoxBehavior.IsEnabled="True"
+                                                 infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                        <TextBlock Text="{Binding BindingEditorValidationMessage}"
+                                                   Foreground="{StaticResource AlertBrush}"
+                                                   Margin="0,10,0,0"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Grid.Row="1"
+                                        Margin="0,16,0,0"
+                                        Padding="12"
+                                        Background="#FFF9EC"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.2*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <WrapPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                                            <TextBlock Text="Macro sequence editor"
+                                                       Foreground="{StaticResource InkBrush}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,12,0" />
+                                            <Button Content="add step"
+                                                    Command="{Binding AddMacroStepCommand}"
+                                                    Style="{StaticResource PrimaryButtonStyle}" />
+                                            <Button Content="remove step"
+                                                    Command="{Binding RemoveMacroStepCommand}"
+                                                    Style="{StaticResource SmallButtonStyle}"
+                                                    Margin="0" />
+                                        </WrapPanel>
+
+                                        <ListBox Grid.Row="1"
+                                                 Grid.Column="0"
+                                                 ItemsSource="{Binding SelectedBinding.MacroSteps}"
+                                                 SelectedItem="{Binding SelectedMacroStep}"
+                                                 Style="{StaticResource PanelListBoxStyle}"
+                                                 ItemContainerStyle="{StaticResource ListBoxItemChromeStyle}"
+                                                 MinHeight="120"
+                                                 Margin="0,0,12,0">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type models:MacroStep}">
+                                                    <DockPanel Margin="0,4">
+                                                        <TextBlock Text="{Binding Key}" FontWeight="SemiBold" />
+                                                        <TextBlock DockPanel.Dock="Right"
+                                                                   Foreground="{StaticResource MutedInkBrush}"
+                                                                   Text="{Binding DelayMs, StringFormat='{}{0} ms'}" />
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <StackPanel Grid.Row="1"
+                                                    Grid.Column="1"
+                                                    IsEnabled="{Binding SelectedMacroStep, Converter={StaticResource NullToBoolean}}">
+                                            <TextBlock Text="Step key" Foreground="{StaticResource InkBrush}" />
+                                            <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                     Text="{Binding SelectedMacroStep.Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     infra:HotkeyCapture.IsEnabled="True" />
+
+                                            <TextBlock Text="Delay after step (ms)" Foreground="{StaticResource InkBrush}" Margin="0,14,0,0" />
+                                            <TextBox Style="{StaticResource EditorTextBoxStyle}"
+                                                     Text="{Binding SelectedMacroStep.DelayMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     infra:NumericTextBoxBehavior.IsEnabled="True"
+                                                     infra:NumericTextBoxBehavior.AllowBlank="False" />
+
+                                            <TextBlock Text="Leave macro sequence empty to use the single input key above. When steps exist, they run in order against the bound client window."
+                                                       Foreground="{StaticResource MutedInkBrush}"
+                                                       TextWrapping="Wrap"
+                                                       FontSize="12"
+                                                       Margin="0,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Grid>
                     </Border>
