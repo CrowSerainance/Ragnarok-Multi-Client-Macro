@@ -9,34 +9,24 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
     private readonly GlobalHotkeyService _hotkeyService;
-    private HwndSource? _hwndSource;
 
     public MainWindow(MainViewModel viewModel, GlobalHotkeyService hotkeyService)
     {
+        InitializeComponent();
         _viewModel = viewModel;
         _hotkeyService = hotkeyService;
         DataContext = _viewModel;
-        InitializeComponent();
-        Closing += (_, _) => { };
+        Loaded += OnLoaded;
     }
 
-    protected override void OnSourceInitialized(EventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        base.OnSourceInitialized(e);
-        var helper = new WindowInteropHelper(this);
-        _viewModel.AttachWindowHandle(helper.Handle);
-        _hwndSource = HwndSource.FromHwnd(helper.Handle);
-        _hwndSource?.AddHook(WndProc);
-    }
+        // Provide the window handle for any future use (window targeting, etc.)
+        var hwnd = new WindowInteropHelper(this).Handle;
+        _viewModel.AttachWindowHandle(hwnd);
 
-    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg == NativeMethods.WM_HOTKEY)
-        {
-            _hotkeyService.HandleWindowMessage(wParam);
-            handled = true;
-        }
-
-        return IntPtr.Zero;
+        // Start the GetAsyncKeyState polling thread (replaces RegisterHotKey)
+        _hotkeyService.Start();
+        _viewModel.RefreshHotkeyPolling();
     }
 }

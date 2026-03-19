@@ -18,22 +18,17 @@ public partial class App : System.Windows.Application
         string configPath = Path.Combine(AppContext.BaseDirectory, "Config", "appconfig.json");
         var configStore = new AppConfigStore();
         var discoveryService = new ClientDiscoveryService(Process.GetCurrentProcess().Id);
-        var attachmentService = new ProcessAttachmentService();
-        var memoryService = new MemoryService(attachmentService);
-        var bindingService = new ClientBindingService(discoveryService, attachmentService);
         var hotkeyService = new GlobalHotkeyService();
-        var macroExecutor = new MacroExecutor(bindingService, new BackgroundInputDispatcher(memoryService, attachmentService), new HotkeyRouter());
+        var inputDispatcher = new InputDispatcher();
+        var turboEngine = new TurboEngine(inputDispatcher);
+        var toggleService = new ToggleService();
 
         _mainViewModel = new MainViewModel(
-            configPath,
-            configStore,
-            discoveryService,
-            bindingService,
-            hotkeyService,
-            macroExecutor);
+            configPath, configStore, discoveryService,
+            hotkeyService, inputDispatcher, turboEngine, toggleService);
 
         var window = new MainWindow(_mainViewModel, hotkeyService);
-        MainWindow = window;
+        this.MainWindow = window;
         window.Show();
     }
 

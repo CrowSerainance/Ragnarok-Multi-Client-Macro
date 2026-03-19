@@ -9,29 +9,35 @@ public sealed class MacroBinding : ObservableObject
     private string _clientProfileId = string.Empty;
     private string _name = "Binding";
     private bool _isEnabled = true;
-    private string _triggerHotkey = "F1";
-    private string _inputKey = "F1";
-    private int _cellRadius = 5;
-    private int _postInputDelayMs = 120;
-    private int _interClickDelayMs = 80;
-    private int _clickCount = 1;
+    private string _triggerKey = "F1";
+    private int _intervalMs = 50;
 
     public string Id
     {
         get => _id;
-        set => SetProperty(ref _id, string.IsNullOrWhiteSpace(value) ? Guid.NewGuid().ToString("N") : value);
+        set
+        {
+            var v = (value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(v)) return;
+            SetProperty(ref _id, v);
+        }
     }
 
     public string ClientProfileId
     {
         get => _clientProfileId;
-        set => SetProperty(ref _clientProfileId, value?.Trim() ?? string.Empty);
+        set => SetProperty(ref _clientProfileId, (value ?? string.Empty).Trim());
     }
 
     public string Name
     {
         get => _name;
-        set => SetProperty(ref _name, string.IsNullOrWhiteSpace(value) ? "Binding" : value.Trim());
+        set
+        {
+            var trimmed = (value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(trimmed)) trimmed = "Binding";
+            SetProperty(ref _name, trimmed);
+        }
     }
 
     public bool IsEnabled
@@ -40,49 +46,25 @@ public sealed class MacroBinding : ObservableObject
         set => SetProperty(ref _isEnabled, value);
     }
 
-    public string TriggerHotkey
+    /// <summary>The key on your keyboard that triggers this macro.</summary>
+    public string TriggerKey
     {
-        get => _triggerHotkey;
-        set => SetProperty(ref _triggerHotkey, value?.Trim() ?? string.Empty);
+        get => _triggerKey;
+        set
+        {
+            var trimmed = (value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(trimmed)) trimmed = "F1";
+            SetProperty(ref _triggerKey, trimmed);
+        }
     }
 
-    public string InputKey
+    /// <summary>Repeat interval (ms) — delay between full sequence cycles. Min 25.</summary>
+    public int IntervalMs
     {
-        get => _inputKey;
-        set => SetProperty(ref _inputKey, value?.Trim() ?? string.Empty);
+        get => _intervalMs;
+        set => SetProperty(ref _intervalMs, Math.Max(25, value));
     }
 
-    public int CellRadius
-    {
-        get => _cellRadius;
-        set => SetProperty(ref _cellRadius, Core.Geometry.CellMath.ClampRadius(value));
-    }
-
-    public int PostInputDelayMs
-    {
-        get => _postInputDelayMs;
-        set => SetProperty(ref _postInputDelayMs, Math.Max(0, value));
-    }
-
-    public int InterClickDelayMs
-    {
-        get => _interClickDelayMs;
-        set => SetProperty(ref _interClickDelayMs, Math.Max(0, value));
-    }
-
-    public int ClickCount
-    {
-        get => _clickCount;
-        set => SetProperty(ref _clickCount, Math.Max(1, value));
-    }
-
-    private ClickDirection _clickDirection = ClickDirection.None;
-
-    public ClickDirection ClickDirection
-    {
-        get => _clickDirection;
-        set => SetProperty(ref _clickDirection, value);
-    }
-
-    public ObservableCollection<MacroStep> MacroSteps { get; set; } = new();
+    /// <summary>The macro step sequence to execute when triggered.</summary>
+    public ObservableCollection<MacroStep> Steps { get; init; } = new();
 }

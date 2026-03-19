@@ -1,5 +1,4 @@
 <Solution>
   <Project Path="PersonalRagnarokTool.Core/PersonalRagnarokTool.Core.csproj" />
-  <Project Path="PersonalRagnarokTool.Tests/PersonalRagnarokTool.Tests.csproj" />
   <Project Path="PersonalRagnarokTool/PersonalRagnarokTool.csproj" />
 </Solution>

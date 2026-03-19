@@ -10,6 +10,8 @@ public sealed class ClientProfile : ObservableObject
     private string _displayName = "Client";
     private bool _isEnabled = true;
     private ClientWindowRef? _boundWindow;
+    private ToggleCombo? _clientToggle;
+    private bool _isActive;
     private string _runtimeStatusLabel = "Unbound";
     private string _runtimeStatusDetail = "Bind this profile to a live client window.";
     private bool _hasLiveWindow;
@@ -17,13 +19,23 @@ public sealed class ClientProfile : ObservableObject
     public string Id
     {
         get => _id;
-        set => SetProperty(ref _id, string.IsNullOrWhiteSpace(value) ? Guid.NewGuid().ToString("N") : value);
+        set
+        {
+            var v = (value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(v)) return;
+            SetProperty(ref _id, v);
+        }
     }
 
     public string DisplayName
     {
         get => _displayName;
-        set => SetProperty(ref _displayName, string.IsNullOrWhiteSpace(value) ? "Client" : value.Trim());
+        set
+        {
+            var trimmed = (value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(trimmed)) trimmed = "Client";
+            SetProperty(ref _displayName, trimmed);
+        }
     }
 
     public bool IsEnabled
@@ -44,9 +56,22 @@ public sealed class ClientProfile : ObservableObject
         }
     }
 
-    public ObservableCollection<MacroBinding> Bindings { get; set; } = new();
+    public ToggleCombo? ClientToggle
+    {
+        get => _clientToggle;
+        set => SetProperty(ref _clientToggle, value);
+    }
+
+    public ObservableCollection<MacroBinding> Bindings { get; init; } = new();
 
     public string BoundWindowDisplayText => BoundWindow?.DisplayText ?? "Not bound";
+
+    [JsonIgnore]
+    public bool IsActive
+    {
+        get => _isActive;
+        set => SetProperty(ref _isActive, value);
+    }
 
     [JsonIgnore]
     public string RuntimeStatusLabel
@@ -59,7 +84,7 @@ public sealed class ClientProfile : ObservableObject
     public string RuntimeStatusDetail
     {
         get => _runtimeStatusDetail;
-        set => SetProperty(ref _runtimeStatusDetail, value ?? "Bind this profile to a live client window.");
+        set => SetProperty(ref _runtimeStatusDetail, value ?? string.Empty);
     }
 
     [JsonIgnore]

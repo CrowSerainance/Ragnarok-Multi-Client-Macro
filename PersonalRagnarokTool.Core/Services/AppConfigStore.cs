@@ -25,13 +25,11 @@ public sealed class AppConfigStore
 
         var json = File.ReadAllText(path);
         var config = JsonSerializer.Deserialize<AppConfig>(json, _serializerOptions) ?? new AppConfig();
-        BindingValidator.NormalizeConfig(config);
         return config;
     }
 
     public void Save(string path, AppConfig config)
     {
-        BindingValidator.NormalizeConfig(config);
         config.LastSavedUtc = DateTimeOffset.UtcNow;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(config, _serializerOptions));

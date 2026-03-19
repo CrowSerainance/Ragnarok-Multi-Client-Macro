@@ -7,6 +7,8 @@ public sealed class AppConfig : ObservableObject
 {
     private int _version = 1;
     private DateTimeOffset _lastSavedUtc = DateTimeOffset.UtcNow;
+    private InputMethod _inputMethod = InputMethod.PostMessage;
+    private ToggleCombo _globalToggle = new();
 
     public int Version
     {
@@ -20,27 +22,16 @@ public sealed class AppConfig : ObservableObject
         set => SetProperty(ref _lastSavedUtc, value);
     }
 
-    private int _mousePosXAddress = 0xB47F60;
-    private int _mousePosYAddress = 0xB47F64;
-
-    public int MousePosXAddress
-    {
-        get => _mousePosXAddress;
-        set => SetProperty(ref _mousePosXAddress, value);
-    }
-
-    public int MousePosYAddress
-    {
-        get => _mousePosYAddress;
-        set => SetProperty(ref _mousePosYAddress, value);
-    }
-
-    private InputMethod _inputMethod = InputMethod.PostMessage;
-
     public InputMethod InputMethod
     {
         get => _inputMethod;
         set => SetProperty(ref _inputMethod, value);
+    }
+
+    public ToggleCombo GlobalToggle
+    {
+        get => _globalToggle;
+        set => SetProperty(ref _globalToggle, value ?? new());
     }
 
     public ObservableCollection<ClientProfile> ClientProfiles { get; set; } = new();

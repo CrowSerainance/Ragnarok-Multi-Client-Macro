@@ -13,6 +13,7 @@ public sealed class MacroStep : ObservableObject
         set => SetProperty(ref _key, string.IsNullOrWhiteSpace(value) ? "F1" : value.Trim());
     }
 
+    /// <summary>Delay in milliseconds AFTER this step before moving to the next. Min 0.</summary>
     public int DelayMs
     {
         get => _delayMs;

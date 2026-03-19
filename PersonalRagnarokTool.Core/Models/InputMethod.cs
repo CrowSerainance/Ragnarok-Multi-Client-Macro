@@ -3,5 +3,6 @@ namespace PersonalRagnarokTool.Core.Models;
 public enum InputMethod
 {
     PostMessage,
-    SendInput
+    SendInput,
+    Interception
 }
