@@ -15,6 +15,10 @@ static const uint32_t CMD_PING           = 0x04;
 static const uint32_t CMD_GET_GAME_STATE = 0x05;
 static const uint32_t CMD_EXECUTE_MACRO  = 0x06;
 static const uint32_t CMD_EXECUTE_LUA    = 0x07;
+static const uint32_t CMD_SYNC_AUTOPOT   = 0x10;
+static const uint32_t CMD_SYNC_AUTOBUFF  = 0x11;
+static const uint32_t CMD_SYNC_SPAMMER   = 0x12;
+static const uint32_t CMD_SYNC_RECOVERY  = 0x13;
 static const uint32_t CMD_RESULT         = 0xFF;
 
 #pragma pack(push, 1)
@@ -50,6 +54,55 @@ struct ExecuteBindingHeader {
 struct ClickPoint {
     int x;
     int y;
+};
+
+// ---- Sync Payloads ----
+
+struct SyncAutopotPayload {
+    bool enabled;
+    uint16_t hpKey;
+    int hpThreshold;
+    uint16_t spKey;
+    int spThreshold;
+    uint16_t yggKey;
+    int yggThreshold;
+    int delayMs;
+};
+
+struct SyncBuffEntry {
+    uint32_t statusId;
+    uint16_t key;
+    bool enabled;
+};
+
+struct SyncAutobuffPayload {
+    bool enabled;
+    uint32_t count;
+    // Followed by count * SyncBuffEntry
+};
+
+struct SyncSpammerEntry {
+    uint16_t key;
+    int intervalMs;
+    bool enabled;
+};
+
+struct SyncSpammerPayload {
+    bool enabled;
+    uint32_t count;
+    // Followed by count * SyncSpammerEntry
+};
+
+struct SyncRecoveryEntry {
+    uint32_t statusId;
+    uint16_t key;
+    bool enabled;
+};
+
+struct SyncRecoveryPayload {
+    bool enabled;
+    uint32_t count;
+    // Followed by count * SyncRecoveryEntry
 };
 #pragma pack(pop)
 

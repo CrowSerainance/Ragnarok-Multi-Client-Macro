@@ -64,6 +64,11 @@ public sealed class ClientProfile : ObservableObject
 
     public ObservableCollection<MacroBinding> Bindings { get; init; } = new();
 
+    public AutopotConfig Autopot { get; set; } = new();
+    public AutobuffConfig Autobuff { get; set; } = new();
+    public SpammerConfig Spammer { get; set; } = new();
+    public StatusRecoveryConfig Recovery { get; set; } = new();
+
     public string BoundWindowDisplayText => BoundWindow?.DisplayText ?? "Not bound";
 
     [JsonIgnore]

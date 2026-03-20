@@ -68,6 +68,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RemoveStepCommand = new RelayCommand(RemoveSelectedStep, () => SelectedStep is not null);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
 
+        AddBuffCommand = new RelayCommand(AddBuff, () => SelectedClient is not null);
+        RemoveBuffCommand = new RelayCommand<BuffConfig>(RemoveBuff, _ => SelectedClient is not null);
+        AddSpammerKeyCommand = new RelayCommand(AddSpammerKey, () => SelectedClient is not null);
+        RemoveSpammerKeyCommand = new RelayCommand<SpammerKey>(RemoveSpammerKey, _ => SelectedClient is not null);
+        AddRecoveryCommand = new RelayCommand(AddRecovery, () => SelectedClient is not null);
+        RemoveRecoveryCommand = new RelayCommand<RecoveryConfig>(RemoveRecovery, _ => SelectedClient is not null);
+
         AttachConfigSubscriptions();
         _hotkeyService.HotkeyPressed += OnHotkeyPressed;
 
@@ -297,6 +304,56 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand AddStepCommand { get; }
     public RelayCommand RemoveStepCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
+
+    public RelayCommand AddBuffCommand { get; }
+    public RelayCommand<BuffConfig> RemoveBuffCommand { get; }
+    public RelayCommand AddSpammerKeyCommand { get; }
+    public RelayCommand<SpammerKey> RemoveSpammerKeyCommand { get; }
+    public RelayCommand AddRecoveryCommand { get; }
+    public RelayCommand<RecoveryConfig> RemoveRecoveryCommand { get; }
+
+    // ... existing code ...
+
+    private void AddBuff()
+    {
+        SelectedClient?.Autobuff.Buffs.Add(new BuffConfig { Name = "New Buff" });
+    }
+
+    private void RemoveBuff(BuffConfig buff)
+    {
+        SelectedClient?.Autobuff.Buffs.Remove(buff);
+    }
+
+    private void AddSpammerKey()
+    {
+        SelectedClient?.Spammer.Keys.Add(new SpammerKey());
+    }
+
+    private void RemoveSpammerKey(SpammerKey key)
+    {
+        SelectedClient?.Spammer.Keys.Remove(key);
+    }
+
+    private void AddRecovery()
+    {
+        SelectedClient?.Recovery.Recoveries.Add(new RecoveryConfig { Name = "New Status" });
+    }
+
+    private void RemoveRecovery(RecoveryConfig rec)
+    {
+        SelectedClient?.Recovery.Recoveries.Remove(rec);
+    }
+
+    private void Sync4RFeatures(ClientProfile profile)
+    {
+        if (profile?.BoundWindow == null) return;
+        int pid = profile.BoundWindow.ProcessId;
+
+        AgentPipeClient.SyncAutopot(pid, profile.Autopot);
+        AgentPipeClient.SyncAutobuff(pid, profile.Autobuff);
+        AgentPipeClient.SyncSpammer(pid, profile.Spammer);
+        AgentPipeClient.SyncRecovery(pid, profile.Recovery);
+    }
 
     // ═══════════════════════════════════════════════════════════
     //  Public API
@@ -578,6 +635,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         profile.Bindings.CollectionChanged += OnBindingsCollectionChanged;
         foreach (var binding in profile.Bindings)
             binding.PropertyChanged += OnBindingPropertyChanged;
+
+        // 4R Feature Subscriptions
+        profile.Autopot.PropertyChanged += (s, e) => Sync4RFeatures(profile);
+        profile.Autobuff.PropertyChanged += (s, e) => Sync4RFeatures(profile);
+        profile.Autobuff.Buffs.CollectionChanged += (s, e) => {
+            if (e.NewItems != null) foreach (BuffConfig b in e.NewItems) b.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
+            Sync4RFeatures(profile);
+        };
+        profile.Spammer.PropertyChanged += (s, e) => Sync4RFeatures(profile);
+        profile.Spammer.Keys.CollectionChanged += (s, e) => {
+            if (e.NewItems != null) foreach (SpammerKey k in e.NewItems) k.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
+            Sync4RFeatures(profile);
+        };
+        profile.Recovery.PropertyChanged += (s, e) => Sync4RFeatures(profile);
+        profile.Recovery.Recoveries.CollectionChanged += (s, e) => {
+            if (e.NewItems != null) foreach (RecoveryConfig r in e.NewItems) r.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
+            Sync4RFeatures(profile);
+        };
     }
 
     private void DetachProfileSubscriptions(ClientProfile profile)

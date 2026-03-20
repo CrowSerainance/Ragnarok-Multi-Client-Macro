@@ -5,7 +5,7 @@
 
 namespace prt {
 
-AgentPipeServer::AgentPipeServer() {
+AgentPipeServer::AgentPipeServer(ClientProfile& profile) : _profile(profile) {
     _injector = std::make_unique<InputInjector>();
 }
 
@@ -21,8 +21,6 @@ void AgentPipeServer::Start() {
 
 void AgentPipeServer::Stop() {
     _running = false;
-    // Note: In a real implementation, we'd use a more robust way to break the ConnectNamedPipe block
-    // like a dummy client connection or using overlapped I/O.
     if (_serverThread.joinable()) {
         _serverThread.detach(); 
     }
@@ -71,65 +69,65 @@ void AgentPipeServer::ProcessMessage(HANDLE hPipe) {
         case ipc::CMD_EXECUTE_BINDING: {
             if (payload.size() < sizeof(ipc::ExecuteBindingHeader)) break;
             auto* bind = reinterpret_cast<ipc::ExecuteBindingHeader*>(payload.data());
-            
-            // Execute Key
             _injector->SendKey(bind->vk, bind->scanCode, bind->postDelayMs);
-
-            // Execute Clicks
-            if (bind->pointCount > 0 && payload.size() >= sizeof(ipc::ExecuteBindingHeader) + (bind->pointCount * sizeof(ipc::ClickPoint))) {
-                auto* points = reinterpret_cast<ipc::ClickPoint*>(payload.data() + sizeof(ipc::ExecuteBindingHeader));
-                for (uint32_t i = 0; i < bind->pointCount; i++) {
-                    _injector->SendClick(points[i].x, points[i].y, bind->mousePosXOffset, bind->mousePosYOffset);
-                    if (bind->interClickMs > 0 && i < bind->pointCount - 1) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(bind->interClickMs));
-                    }
-                }
+            break;
+        }
+        case ipc::CMD_SYNC_AUTOPOT: {
+            if (payload.size() < sizeof(ipc::SyncAutopotPayload)) break;
+            auto* p = reinterpret_cast<ipc::SyncAutopotPayload*>(payload.data());
+            _profile.autopot.enabled = p->enabled;
+            _profile.autopot.hpKey = p->hpKey;
+            _profile.autopot.hpThreshold = p->hpThreshold;
+            _profile.autopot.spKey = p->spKey;
+            _profile.autopot.spThreshold = p->spThreshold;
+            _profile.autopot.yggKey = p->yggKey;
+            _profile.autopot.yggThreshold = p->yggThreshold;
+            _profile.autopot.delayMs = p->delayMs;
+            break;
+        }
+        case ipc::CMD_SYNC_AUTOBUFF: {
+            if (payload.size() < sizeof(ipc::SyncAutobuffPayload)) break;
+            auto* p = reinterpret_cast<ipc::SyncAutobuffPayload*>(payload.data());
+            _profile.autobuff.enabled = p->enabled;
+            _profile.autobuff.buffs.clear();
+            auto* entries = reinterpret_cast<ipc::SyncBuffEntry*>(payload.data() + sizeof(ipc::SyncAutobuffPayload));
+            for (uint32_t i = 0; i < p->count; ++i) {
+                BuffConfig b;
+                b.statusId = entries[i].statusId;
+                b.key = entries[i].key;
+                b.enabled = entries[i].enabled;
+                _profile.autobuff.buffs.push_back(b);
             }
             break;
         }
-        case ipc::CMD_EXECUTE_MACRO: {
-            if (payload.size() < sizeof(ipc::ExecuteMacroHeader)) break;
-            auto* macroCmd = reinterpret_cast<ipc::ExecuteMacroHeader*>(payload.data());
-            
-            // Background Execution Constraint: Strictly internal
-            // Targeting Formula: X cells from center (Up, Down, Left, Right)
-            
-            // 1. Get Game Window Dimensions
-            RECT rect;
-            HWND hwnd = GetTopWindow(NULL); // Simplified: should use cached HWND
-            GetClientRect(hwnd, &rect);
-            int centerX = (rect.right - rect.left) / 2;
-            int centerY = (rect.bottom - rect.top) / 2;
-
-            // 2. Calculate Offset (Assuming ~30px per cell at default zoom)
-            const int PIXELS_PER_CELL = 32; 
-            int targetX = centerX;
-            int targetY = centerY;
-
-            switch (static_cast<ipc::TargetDirection>(macroCmd->targetDirection)) {
-                case ipc::TargetDirection::Up:    targetY -= (macroCmd->targetDistance * PIXELS_PER_CELL); break;
-                case ipc::TargetDirection::Down:  targetY += (macroCmd->targetDistance * PIXELS_PER_CELL); break;
-                case ipc::TargetDirection::Left:  targetX -= (macroCmd->targetDistance * PIXELS_PER_CELL); break;
-                case ipc::TargetDirection::Right: targetX += (macroCmd->targetDistance * PIXELS_PER_CELL); break;
+        case ipc::CMD_SYNC_SPAMMER: {
+            if (payload.size() < sizeof(ipc::SyncSpammerPayload)) break;
+            auto* p = reinterpret_cast<ipc::SyncSpammerPayload*>(payload.data());
+            _profile.spammer.enabled = p->enabled;
+            _profile.spammer.keys.clear();
+            auto* entries = reinterpret_cast<ipc::SyncSpammerEntry*>(payload.data() + sizeof(ipc::SyncSpammerPayload));
+            for (uint32_t i = 0; i < p->count; ++i) {
+                SpammerKey s;
+                s.key = entries[i].key;
+                s.intervalMs = entries[i].intervalMs;
+                s.enabled = entries[i].enabled;
+                _profile.spammer.keys.push_back(s);
             }
-
-            // 3. Execute Internal Action
-            // Directly invoke the game's internal skill cast on targetX, targetY 
-            // without bringing the window to foreground or sending OS messages.
-            std::cout << "[AgentPipeServer] Silent Skill Cast: ID=" << macroCmd->macroId 
-                      << " Dir=" << (int)macroCmd->targetDirection 
-                      << " Dist=" << (int)macroCmd->targetDistance 
-                      << " @ ScreenPos(" << targetX << "," << targetY << ")" << std::endl;
             break;
         }
-        case ipc::CMD_EXECUTE_LUA: {
-            // Payload is the raw Lua string
-            std::string script(reinterpret_cast<char*>(payload.data()), payload.size());
-            
-            // Background Execution Constraint: Strictly internal
-            // Bridge to the internal Lua engine state (e.g., luaL_dostring)
-            std::cout << "[AgentPipeServer] Executing internal Lua Script: " << script << std::endl;
-            // ExecuteGameLuaScript(script);
+        case ipc::CMD_SYNC_RECOVERY: {
+            if (payload.size() < sizeof(ipc::SyncRecoveryPayload)) break;
+            auto* p = reinterpret_cast<ipc::SyncRecoveryPayload*>(payload.data());
+            _profile.recovery.enabled = p->enabled;
+            _profile.recovery.recoveries.clear();
+            auto* entries = reinterpret_cast<ipc::SyncRecoveryEntry*>(payload.data() + sizeof(ipc::SyncRecoveryPayload));
+            for (uint32_t i = 0; i < p->count; ++i) {
+                RecoveryConfig r;
+                r.statusId = entries[i].statusId;
+                r.key = entries[i].key;
+                r.enabled = entries[i].enabled;
+                _profile.recovery.recoveries.push_back(r);
+            }
             break;
         }
         case ipc::CMD_PING: {

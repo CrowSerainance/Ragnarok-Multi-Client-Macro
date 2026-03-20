@@ -96,11 +96,58 @@ struct PlayerState {
     std::string name;
     std::string mapName;
     bool isChatBarOpen = false;
+    uint32_t statusBuffer[100] = {0};
 };
 
 struct GameState {
     PlayerState player;
     std::vector<Entity> entities;
+};
+
+// ---- Feature Configs ----
+
+struct AutopotConfig {
+    bool enabled = false;
+    uint16_t hpKey = 0;
+    int hpThreshold = 50;
+    uint16_t spKey = 0;
+    int spThreshold = 30;
+    uint16_t yggKey = 0;
+    int yggThreshold = 20;
+    int delayMs = 50;
+};
+
+struct BuffConfig {
+    uint32_t statusId = 0;
+    uint16_t key = 0;
+    bool enabled = true;
+};
+
+struct AutobuffConfig {
+    bool enabled = false;
+    std::vector<BuffConfig> buffs;
+};
+
+struct SpammerKey {
+    uint16_t key = 0;
+    int intervalMs = 100;
+    bool enabled = true;
+};
+
+struct SpammerConfig {
+    bool enabled = false;
+    std::vector<SpammerKey> keys;
+};
+
+struct RecoveryConfig {
+    uint32_t statusId = 0;
+    uint16_t key = 0;
+    bool enabled = true;
+};
+
+struct StatusRecoveryConfig {
+    bool enabled = false;
+    std::vector<RecoveryConfig> recoveries;
 };
 
 // ---- Client Profile ----
@@ -112,6 +159,12 @@ struct ClientProfile {
     ClientWindowRef boundWindow;
     bool hasBoundWindow = false;
     std::vector<MacroBinding> bindings;
+    
+    // 4R Features
+    AutopotConfig autopot;
+    AutobuffConfig autobuff;
+    SpammerConfig spammer;
+    StatusRecoveryConfig recovery;
 
     // Runtime
     std::string runtimeStatusLabel;
@@ -146,6 +199,10 @@ enum class AgentCommandId : uint32_t {
     CapturePreview = 0x03,
     Ping           = 0x04,
     GetGameState   = 0x05,
+    SyncAutopot    = 0x06,
+    SyncAutobuff   = 0x07,
+    SyncSpammer    = 0x08,
+    SyncRecovery   = 0x09,
     Result         = 0xFF,
 };
 

@@ -9,6 +9,8 @@
 #include "MemoryReader.h"
 #include "../Bot/GameReader.h"
 #include "../Bot/BotFsm.h"
+#include "../Bot/FeatureManager.h"
+#include "Actuator/AgentPipeServer.h"
 
 // ImGui
 #include "../vendor/imgui/imgui.h"
@@ -22,7 +24,9 @@ static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
 static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
 static bool g_imguiInitialized = false;
 static AppConfig g_config;
+static ClientProfile g_activeProfile;
 static std::atomic<bool> g_running{true};
+static std::unique_ptr<AgentPipeServer> g_pipeServer;
 
 // Forward declare wndproc hook
 extern LRESULT IMGUI_IMPL_API ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -82,19 +86,37 @@ void BotThread() {
     // Initial load
     ConfigService::Load(g_config, "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\Config\\appconfig.json");
     
+    // Find the profile for this process
+    DWORD pid = GetCurrentProcessId();
+    for (auto& profile : g_config.clientProfiles) {
+        if (profile.boundWindow.processId == (int)pid) {
+            g_activeProfile = profile;
+            break;
+        }
+    }
+
+    auto injector = std::make_shared<InputInjector>();
     auto mem = std::make_shared<MemoryReader>();
     GameReader reader(mem, g_config.addresses);
+    FeatureManager features(injector);
     BotFsm fsm;
+
+    // Start Pipe Server for live updates
+    g_pipeServer = std::make_unique<AgentPipeServer>(g_activeProfile);
+    g_pipeServer->Start();
 
     while (g_running) {
         if (g_config.botEnabled) {
             GameState state;
             if (reader.TryRead(state)) {
+                features.Update(state, g_activeProfile);
                 // Execute FSM logic...
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
+
+    if (g_pipeServer) g_pipeServer->Stop();
 }
 
 void MainThread(HMODULE hModule) {

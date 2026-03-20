@@ -30,6 +30,12 @@ bool GameReader::TryRead(GameState& state) {
     if (_addr.chatBarEnabled != 0)
         state.player.isChatBarOpen = _reader->ReadUInt32(baseAddr + _addr.chatBarEnabled) != 0;
 
+    // Buffs/Status Buffer (100 uint32_t starting at offset 0x474 from playerCurrentHp)
+    uintptr_t statusBase = baseAddr + _addr.playerCurrentHp + 0x474;
+    for (int i = 0; i < 100; ++i) {
+        state.player.statusBuffer[i] = _reader->ReadUInt32(statusBase + (i * sizeof(uint32_t)));
+    }
+
     // Entities
     state.entities = ReadEntities(baseAddr);
 
