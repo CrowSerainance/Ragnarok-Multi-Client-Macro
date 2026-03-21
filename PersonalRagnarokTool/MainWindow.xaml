@@ -74,10 +74,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -107,12 +104,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -142,11 +134,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
                             <ScrollViewer x:Name="PART_ContentHost" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -186,11 +174,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="ItemBd"
-                                Background="Transparent"
-                                CornerRadius="10"
-                                BorderThickness="3,0,0,0"
-                                BorderBrush="Transparent">
+                        <Border x:Name="ItemBd" Background="Transparent" CornerRadius="10" BorderThickness="3,0,0,0" BorderBrush="Transparent">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -215,10 +199,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="ItemBd"
-                                Background="Transparent"
-                                CornerRadius="6"
-                                Padding="8,6">
+                        <Border x:Name="ItemBd" Background="Transparent" CornerRadius="6" Padding="8,6">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -252,10 +233,8 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ═══ SIDEBAR ═══ -->
-        <Border Grid.Column="0"
-                Width="{Binding SidebarWidth}"
-                Background="{StaticResource SidebarBg}">
+        <!-- SIDEBAR -->
+        <Border Grid.Column="0" Width="{Binding SidebarWidth}" Background="{StaticResource SidebarBg}">
             <Grid Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVisibility}}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -272,132 +251,57 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Personal Ragnarok Tool"
-                                   Foreground="{StaticResource SidebarText}"
-                                   FontSize="22"
-                                   FontWeight="Bold" />
-                        <Button Grid.Column="1"
-                                Content="{Binding SidebarToggleLabel}"
-                                Command="{Binding ToggleSidebarCommand}"
-                                Style="{StaticResource SecondaryBtn}"
-                                Width="32" Height="32" Padding="0" Margin="0"
-                                Foreground="{StaticResource SidebarText}"
-                                Background="{StaticResource SidebarCard}" />
+                        <TextBlock Text="Personal Ragnarok Tool" Foreground="{StaticResource SidebarText}" FontSize="22" FontWeight="Bold" />
+                        <Button Grid.Column="1" Content="{Binding SidebarToggleLabel}" Command="{Binding ToggleSidebarCommand}" Style="{StaticResource SecondaryBtn}" Width="32" Height="32" Padding="0" Margin="0" Foreground="{StaticResource SidebarText}" Background="{StaticResource SidebarCard}" />
                     </Grid>
-                    <TextBlock Text="Macro sequences for Ragnarok Online"
-                               Foreground="{StaticResource SidebarMuted}"
-                               FontSize="12"
-                               Margin="0,4,0,0" />
+                    <TextBlock Text="Internal 4R Edition" Foreground="{StaticResource SidebarMuted}" FontSize="12" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <!-- Global Toggle Badge -->
-                <Border Grid.Row="1"
-                        Margin="16,16,16,0"
-                        Padding="14,10"
-                        CornerRadius="10"
-                        Background="{Binding IsGlobalActive, Converter={StaticResource BoolToStatusBrush}}">
+                <Border Grid.Row="1" Margin="16,16,16,0" Padding="14,10" CornerRadius="10" Background="{Binding IsGlobalActive, Converter={StaticResource BoolToStatusBrush}}">
                     <StackPanel>
-                        <TextBlock Text="{Binding GlobalToggleStatusText}"
-                                   Foreground="White"
-                                   FontSize="18"
-                                   FontWeight="Bold"
-                                   HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding GlobalToggleComboText}"
-                                   Foreground="#FFFFFFCC"
-                                   FontSize="12"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding GlobalToggleStatusText}" Foreground="White" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding GlobalToggleComboText}" Foreground="#FFFFFFCC" FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 
                 <!-- Toggle Key Reassignment -->
-                <Border Grid.Row="2"
-                        Margin="16,8,16,0"
-                        Padding="10,8"
-                        CornerRadius="8"
-                        Background="{StaticResource SidebarCard}">
+                <Border Grid.Row="2" Margin="16,8,16,0" Padding="10,8" CornerRadius="8" Background="{StaticResource SidebarCard}">
                     <StackPanel>
-                        <TextBlock Text="Toggle Hotkey"
-                                   Foreground="{StaticResource SidebarMuted}"
-                                   FontSize="11" FontWeight="SemiBold"
-                                   Margin="0,0,0,4" />
+                        <TextBlock Text="Toggle Hotkey" Foreground="{StaticResource SidebarMuted}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="6" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox ItemsSource="{Binding ModifierOptions}"
-                                      SelectedItem="{Binding GlobalToggleModifier, Mode=TwoWay}"
-                                      FontSize="12" Padding="4,3"
-                                      Background="{StaticResource SidebarSelected}"
-                                      Foreground="{StaticResource SidebarText}"
-                                      BorderThickness="1"
-                                      BorderBrush="{StaticResource SidebarMuted}" />
-                            <TextBox Grid.Column="2"
-                                     Text="{Binding GlobalToggleKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     infra:HotkeyCapture.IsEnabled="True"
-                                     FontSize="12" Padding="4,3"
-                                     TextAlignment="Center"
-                                     Background="{StaticResource SidebarSelected}"
-                                     Foreground="{StaticResource SidebarText}"
-                                     BorderThickness="1"
-                                     BorderBrush="{StaticResource SidebarMuted}" />
+                            <ComboBox ItemsSource="{Binding ModifierOptions}" SelectedItem="{Binding GlobalToggleModifier, Mode=TwoWay}" FontSize="12" Padding="4,3" Background="{StaticResource SidebarSelected}" Foreground="{StaticResource SidebarText}" BorderThickness="1" BorderBrush="{StaticResource SidebarMuted}" />
+                            <TextBox Grid.Column="2" Text="{Binding GlobalToggleKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" infra:HotkeyCapture.IsEnabled="True" FontSize="12" Padding="4,3" TextAlignment="Center" Background="{StaticResource SidebarSelected}" Foreground="{StaticResource SidebarText}" BorderThickness="1" BorderBrush="{StaticResource SidebarMuted}" />
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- Client Buttons -->
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="16,12,16,0">
-                    <Button Content="+ Client"
-                            Command="{Binding AddClientCommand}"
-                            Style="{StaticResource PrimaryBtn}"
-                            FontSize="12" Padding="10,5" />
-                    <Button Content="- Client"
-                            Command="{Binding RemoveSelectedClientCommand}"
-                            Style="{StaticResource SecondaryBtn}"
-                            FontSize="12" Padding="10,5" Margin="0"
-                            Foreground="{StaticResource SidebarText}"
-                            Background="{StaticResource SidebarCard}" />
+                    <Button Content="+ Client" Command="{Binding AddClientCommand}" Style="{StaticResource PrimaryBtn}" FontSize="12" Padding="10,5" />
+                    <Button Content="- Client" Command="{Binding RemoveSelectedClientCommand}" Style="{StaticResource SecondaryBtn}" FontSize="12" Padding="10,5" Margin="0" Foreground="{StaticResource SidebarText}" Background="{StaticResource SidebarCard}" />
                 </StackPanel>
 
                 <!-- Client List -->
-                <ListBox Grid.Row="4"
-                         Margin="12,12,12,12"
-                         ItemsSource="{Binding ClientProfiles}"
-                         SelectedItem="{Binding SelectedClient}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ItemContainerStyle="{StaticResource SidebarItemStyle}">
+                <ListBox Grid.Row="4" Margin="12,12,12,12" ItemsSource="{Binding ClientProfiles}" SelectedItem="{Binding SelectedClient}" Background="Transparent" BorderThickness="0" ItemContainerStyle="{StaticResource SidebarItemStyle}">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:ClientProfile}">
-                            <Border Padding="12,10"
-                                    Background="{StaticResource SidebarCard}"
-                                    CornerRadius="10">
+                            <Border Padding="12,10" Background="{StaticResource SidebarCard}" CornerRadius="10">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding DisplayName}"
-                                                   Foreground="{StaticResource SidebarText}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="15" />
-                                        <TextBlock Text="{Binding BoundWindowDisplayText}"
-                                                   Foreground="{StaticResource SidebarMuted}"
-                                                   FontSize="11"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Margin="0,2,0,0" />
-                                        <TextBlock Text="{Binding Bindings.Count, StringFormat='{}{0} macro(s)'}"
-                                                   Foreground="{StaticResource SidebarMuted}"
-                                                   FontSize="11"
-                                                   Margin="0,2,0,0" />
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource SidebarText}" FontWeight="SemiBold" FontSize="15" />
+                                        <TextBlock Text="{Binding BoundWindowDisplayText}" Foreground="{StaticResource SidebarMuted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
                                     </StackPanel>
-                                    <Ellipse Grid.Column="1"
-                                             Width="12" Height="12"
-                                             VerticalAlignment="Center"
-                                             Fill="{Binding IsActive, Converter={StaticResource BoolToStatusBrush}}" />
+                                    <Ellipse Grid.Column="1" Width="12" Height="12" VerticalAlignment="Center" Fill="{Binding IsActive, Converter={StaticResource BoolToStatusBrush}}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -406,7 +310,7 @@
             </Grid>
         </Border>
 
-        <!-- ═══ MAIN CONTENT ═══ -->
+        <!-- MAIN CONTENT -->
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -422,49 +326,34 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock Text="Personal Ragnarok Tool Tool"
-                                   Foreground="{StaticResource InkBrush}"
-                                   FontSize="22" FontWeight="Bold" />
-                        <TextBlock Text="Macro sequences for Ragnarok Online. Press trigger key to start/stop a macro."
-                                   Foreground="{StaticResource MutedInk}"
-                                   FontSize="13" Margin="0,4,0,0" />
+                        <TextBlock Text="Personal Ragnarok Tool" Foreground="{StaticResource InkBrush}" FontSize="22" FontWeight="Bold" />
+                        <TextBlock Text="Aggressive internal logic sync. Select a tab to configure features." Foreground="{StaticResource MutedInk}" FontSize="13" Margin="0,4,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Input:" VerticalAlignment="Center" Margin="0,0,6,0"
-                                   Foreground="{StaticResource LabelInk}" FontWeight="SemiBold" />
-                        <ComboBox ItemsSource="{Binding InputMethods}"
-                                  SelectedItem="{Binding SelectedInputMethod}"
-                                  Style="{StaticResource EditorCombo}"
-                                  Width="140" Margin="0,0,12,0" />
-                        <Button Content="Refresh Windows"
-                                Command="{Binding RefreshWindowsCommand}"
-                                Style="{StaticResource SecondaryBtn}" />
-                        <Button Content="Save"
-                                Command="{Binding SaveCommand}"
-                                Style="{StaticResource PrimaryBtn}" Margin="0" />
+                        <Button Content="Refresh Windows" Command="{Binding RefreshWindowsCommand}" Style="{StaticResource SecondaryBtn}" />
+                        <Button Content="Save Config" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryBtn}" Margin="0" />
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- SCROLLABLE CONTENT -->
+            <!-- TABS -->
             <TabControl Grid.Row="1" Margin="16,0,16,16" Background="Transparent" BorderThickness="0">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">
                         <Setter Property="HeaderTemplate">
                             <Setter.Value>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding}" FontSize="16" FontWeight="SemiBold" Padding="12,6" />
+                                    <TextBlock Text="{Binding}" FontSize="13" FontWeight="SemiBold" Padding="8,6" />
                                 </DataTemplate>
                             </Setter.Value>
                         </Setter>
                     </Style>
                 </TabControl.Resources>
 
-                <!-- ═══ TAB: MACROS ═══ -->
+                <!-- ═══════════ TAB: MACROS ═══════════ -->
                 <TabItem Header="Macros">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,16,0,0">
-                            <!-- CLIENT BINDING CARD -->
                             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -472,290 +361,102 @@
                                         <ColumnDefinition Width="320" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Text="Selected Client"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   FontSize="16" FontWeight="Bold" />
-                                        <TextBlock Text="Client name" Style="{StaticResource FieldLabel}" />
-                                        <TextBox Style="{StaticResource EditorTextBox}"
-                                                 Text="{Binding SelectedClient.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 IsEnabled="{Binding SelectedClient, Converter={StaticResource NullToBoolean}}" />
-                                        <CheckBox Content="Client enabled"
-                                                  IsChecked="{Binding SelectedClient.IsEnabled, Mode=TwoWay}"
-                                                  Foreground="{StaticResource InkBrush}"
-                                                  Margin="0,10,0,0" FontSize="13" />
+                                    <StackPanel>
+                                        <TextBlock Text="Selected Client" Style="{StaticResource FieldLabel}" Margin="0" />
+                                        <TextBox Style="{StaticResource EditorTextBox}" Text="{Binding SelectedClient.DisplayName}" />
+                                        <CheckBox Content="Enabled" IsChecked="{Binding SelectedClient.IsEnabled}" Margin="0,10,0,0" />
                                     </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Margin="0,0,16,0">
-                                        <TextBlock Text="Window Binding"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   FontSize="16" FontWeight="Bold" />
-                                        <TextBlock Text="Available windows" Style="{StaticResource FieldLabel}" />
-                                        <ComboBox ItemsSource="{Binding AvailableWindows}"
-                                                  SelectedItem="{Binding SelectedAvailableWindow}"
-                                                  DisplayMemberPath="DisplayText"
-                                                  Style="{StaticResource EditorCombo}" />
+                                    <StackPanel Grid.Column="1" Margin="20,0">
+                                        <TextBlock Text="Window Binding" Style="{StaticResource FieldLabel}" Margin="0" />
+                                        <ComboBox ItemsSource="{Binding AvailableWindows}" SelectedItem="{Binding SelectedAvailableWindow}" DisplayMemberPath="DisplayText" Style="{StaticResource EditorCombo}" />
                                         <WrapPanel Margin="0,10,0,0">
-                                            <Button Content="Bind"
-                                                    Command="{Binding BindSelectedClientCommand}"
-                                                    Style="{StaticResource PrimaryBtn}" />
-                                            <Button Content="Unbind"
-                                                    Command="{Binding UnbindSelectedClientCommand}"
-                                                    Style="{StaticResource SecondaryBtn}" Margin="0" />
+                                            <Button Content="Bind" Command="{Binding BindSelectedClientCommand}" Style="{StaticResource PrimaryBtn}" />
+                                            <Button Content="Unbind" Command="{Binding UnbindSelectedClientCommand}" Style="{StaticResource SecondaryBtn}" />
                                         </WrapPanel>
                                     </StackPanel>
-
                                     <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Runtime Status"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   FontSize="16" FontWeight="Bold" />
-                                        <TextBlock Text="{Binding SelectedClientBindingStatus}"
-                                                   FontSize="16" FontWeight="Bold"
-                                                   Margin="0,8,0,0">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource ActiveGreen}" />
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBlock Text="{Binding SelectedClientBindingDetail}"
-                                                   Foreground="{StaticResource MutedInk}"
-                                                   TextWrapping="Wrap" Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding HotkeyStatus}"
-                                                   Foreground="{StaticResource MutedInk}"
-                                                   TextWrapping="Wrap" Margin="0,8,0,0" FontSize="12" />
+                                        <TextBlock Text="Status" Style="{StaticResource FieldLabel}" Margin="0" />
+                                        <TextBlock Text="{Binding SelectedClientBindingStatus}" FontWeight="Bold" Foreground="{StaticResource ActiveGreen}" FontSize="16" />
+                                        <TextBlock Text="{Binding SelectedClientBindingDetail}" TextWrapping="Wrap" Foreground="{StaticResource MutedInk}" FontSize="12" />
                                     </StackPanel>
                                 </Grid>
                             </Border>
-
-                            <!-- MACRO BINDINGS CARD -->
                             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Header -->
-                                    <WrapPanel Grid.Row="0" Margin="0,0,0,8">
-                                        <TextBlock Text="Macros"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   FontSize="16" FontWeight="Bold"
-                                                   VerticalAlignment="Center" Margin="0,0,12,0" />
-                                        <Button Content="Add Macro"
-                                                Command="{Binding AddBindingCommand}"
-                                                Style="{StaticResource PrimaryBtn}" />
-                                        <Button Content="Remove"
-                                                Command="{Binding RemoveBindingCommand}"
-                                                Style="{StaticResource SecondaryBtn}" Margin="0" />
+                                <StackPanel>
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Macros" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <Button Content="+ Add" Command="{Binding AddBindingCommand}" Style="{StaticResource PrimaryBtn}" />
+                                        <Button Content="Remove" Command="{Binding RemoveBindingCommand}" Style="{StaticResource SecondaryBtn}" />
                                     </WrapPanel>
-
-                                    <!-- Macro List (bindings for this client) -->
-                                    <ListBox Grid.Row="1"
-                                             ItemsSource="{Binding SelectedClient.Bindings}"
-                                             SelectedItem="{Binding SelectedBinding}"
-                                             MinHeight="60"
-                                             MaxHeight="140"
-                                             Background="#FAFAFA"
-                                             BorderBrush="{StaticResource CardBorder}"
-                                             BorderThickness="1"
-                                             ItemContainerStyle="{StaticResource MainListItemStyle}">
+                                    <ListBox ItemsSource="{Binding SelectedClient.Bindings}" SelectedItem="{Binding SelectedBinding}" MinHeight="60" MaxHeight="140" ItemContainerStyle="{StaticResource MainListItemStyle}">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type models:MacroBinding}">
-                                                <Grid Margin="4,2">
+                                            <DataTemplate>
+                                                <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                               Foreground="{StaticResource InkBrush}" />
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding TriggerKey, StringFormat='[{0}]'}"
-                                                               Foreground="{StaticResource PrimaryBlue}"
-                                                               FontWeight="Bold" Margin="0,0,12,0" />
-                                                    <TextBlock Grid.Column="2"
-                                                               Text="{Binding Steps.Count, StringFormat='{}{0} step(s)'}"
-                                                               Foreground="{StaticResource MutedInk}" />
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding TriggerKey, StringFormat='[{0}]'}" Foreground="{StaticResource PrimaryBlue}" FontWeight="Bold" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                </Grid>
+                                </StackPanel>
                             </Border>
-
-                            <!-- ═══ MACRO EDITOR: TWO-PANEL LAYOUT ═══ -->
-                            <Border Style="{StaticResource CardStyle}"
-                                    IsEnabled="{Binding SelectedBinding, Converter={StaticResource NullToBoolean}}">
+                            <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding SelectedBinding, Converter={StaticResource NullToBoolean}}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="280" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-
-                                    <!-- ─── LEFT PANEL: CLIENT + KEY ASSIGNMENT ─── -->
                                     <StackPanel Margin="0,0,20,0">
-                                        <TextBlock Foreground="{StaticResource InkBrush}"
-                                                   FontSize="16" FontWeight="Bold">
-                                            <Run Text="Client:" />
-                                            <Run Text="{Binding SelectedClient.DisplayName, Mode=OneWay}"
-                                                 Foreground="{StaticResource PrimaryBlue}" />
-                                        </TextBlock>
-
-                                        <TextBlock Text="Macro name" Style="{StaticResource FieldLabel}" Margin="0,8,0,0" />
-                                        <TextBox Style="{StaticResource EditorTextBox}"
-                                                 Text="{Binding SelectedBinding.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                                        <CheckBox Content="Enabled"
-                                                  IsChecked="{Binding SelectedBinding.IsEnabled, Mode=TwoWay}"
-                                                  Foreground="{StaticResource InkBrush}"
-                                                  Margin="0,10,0,0" FontSize="13" />
-
-                                        <TextBlock Text="Press Key to Assign"
-                                                   Style="{StaticResource FieldLabel}"
-                                                   Margin="0,16,0,4" FontSize="14" />
-                                        <TextBox Style="{StaticResource HotkeyCaptureLarge}"
-                                                 Text="{Binding SelectedBinding.TriggerKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 infra:HotkeyCapture.IsEnabled="True" />
-                                        <TextBlock Text="Click the box above, then press the key you want to use as the trigger."
-                                                   Foreground="{StaticResource MutedInk}"
-                                                   FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0" />
-
-                                        <Border Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1"
-                                                CornerRadius="6" Padding="10,8" Margin="0,16,0,0">
-                                            <TextBlock Foreground="#9A3412" FontSize="12" TextWrapping="Wrap">
-                                                <Run FontWeight="Bold">Usage:</Run>
-                                                <Run>Press trigger to START. Press again to STOP. Toggle (</Run><Run Text="{Binding GlobalToggleComboText, Mode=OneWay}" /><Run>) stops all.</Run>
-                                            </TextBlock>
-                                        </Border>
+                                        <TextBlock Text="Trigger Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                        <TextBox Style="{StaticResource HotkeyCaptureLarge}" Text="{Binding SelectedBinding.TriggerKey}" infra:HotkeyCapture.IsEnabled="True" />
+                                        <CheckBox Content="Repeat Macro" IsChecked="{Binding SelectedBinding.IsEnabled}" Margin="0,10,0,0" />
                                     </StackPanel>
-
-                                    <!-- ─── RIGHT PANEL: MACRO STEP LIST ─── -->
-                                    <Grid Grid.Column="1">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <!-- Header row: title + interval -->
-                                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                                    <StackPanel Grid.Column="1">
+                                        <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-
-                                            <TextBlock Text="{Binding MacroListHeader}"
-                                                       Foreground="{StaticResource InkBrush}"
-                                                       FontSize="16" FontWeight="Bold"
-                                                       VerticalAlignment="Center" />
-
-                                            <TextBlock Grid.Column="1"
-                                                       Text="Repeat every"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{StaticResource LabelInk}"
-                                                       FontWeight="SemiBold" FontSize="13"
-                                                       Margin="0,0,6,0" />
-                                            <TextBox Grid.Column="2"
-                                                     Style="{StaticResource EditorTextBox}"
-                                                     Width="70" Margin="0"
-                                                     Text="{Binding SelectedBindingIntervalMsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                     infra:NumericTextBoxBehavior.IsEnabled="True"
-                                                     infra:NumericTextBoxBehavior.AllowBlank="False"
-                                                     TextAlignment="Center" />
-                                            <TextBlock Grid.Column="3"
-                                                       Text="ms"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{StaticResource LabelInk}"
-                                                       FontWeight="SemiBold" FontSize="13"
-                                                       Margin="6,0,0,0" />
+                                            <TextBlock Text="Steps" FontSize="16" FontWeight="Bold" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <TextBlock Text="Interval (ms)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <TextBox Width="60" Text="{Binding SelectedBindingIntervalMsText}" Style="{StaticResource EditorTextBox}" Margin="0" />
+                                            </StackPanel>
                                         </Grid>
-
-                                        <!-- Step list -->
-                                        <Border Grid.Row="1"
-                                                Background="#FAFAFA"
-                                                BorderBrush="{StaticResource CardBorder}"
-                                                BorderThickness="2"
-                                                CornerRadius="8"
-                                                MinHeight="180">
-                                            <ListBox ItemsSource="{Binding SelectedBinding.Steps}"
-                                                     SelectedItem="{Binding SelectedStep}"
-                                                     Background="Transparent"
-                                                     BorderThickness="0"
-                                                     ItemContainerStyle="{StaticResource MainListItemStyle}">
-                                                <ListBox.ItemTemplate>
-                                                    <DataTemplate DataType="{x:Type models:MacroStep}">
-                                                        <Grid Margin="4,2">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-
-                                                            <TextBlock Text="Key:"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource LabelInk}"
-                                                                       FontWeight="SemiBold"
-                                                                       Margin="0,0,6,0" />
-                                                            <TextBox Grid.Column="1"
-                                                                     Style="{StaticResource EditorTextBox}"
-                                                                     Margin="0"
-                                                                     Text="{Binding Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                     infra:HotkeyCapture.IsEnabled="True"
-                                                                     MinWidth="80" />
-
-                                                            <TextBlock Grid.Column="2"
-                                                                       Text="Delay:"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource LabelInk}"
-                                                                       FontWeight="SemiBold"
-                                                                       Margin="16,0,6,0" />
-                                                            <TextBox Grid.Column="3"
-                                                                     Style="{StaticResource EditorTextBox}"
-                                                                     Margin="0"
-                                                                     Width="60"
-                                                                     Text="{Binding DelayMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                     infra:NumericTextBoxBehavior.IsEnabled="True"
-                                                                     infra:NumericTextBoxBehavior.AllowBlank="False"
-                                                                     TextAlignment="Center" />
-                                                            <TextBlock Grid.Column="4"
-                                                                       Text="ms"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource MutedInk}"
-                                                                       Margin="4,0,0,0" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ListBox.ItemTemplate>
-                                            </ListBox>
-                                        </Border>
-
-                                        <!-- Step buttons + validation -->
-                                        <StackPanel Grid.Row="2" Margin="0,10,0,0">
-                                            <WrapPanel>
-                                                <Button Content="+ Add Step"
-                                                        Command="{Binding AddStepCommand}"
-                                                        Style="{StaticResource PrimaryBtn}" />
-                                                <Button Content="- Remove Step"
-                                                        Command="{Binding RemoveStepCommand}"
-                                                        Style="{StaticResource SecondaryBtn}" Margin="0" />
-                                            </WrapPanel>
-                                            <TextBlock Text="{Binding BindingEditorValidationMessage}"
-                                                       Foreground="{StaticResource AlertBrush}"
-                                                       Margin="0,6,0,0" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Grid>
+                                        <ListBox ItemsSource="{Binding SelectedBinding.Steps}" SelectedItem="{Binding SelectedStep}" MinHeight="100" ItemContainerStyle="{StaticResource MainListItemStyle}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="60" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Key:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                        <TextBox Grid.Column="1" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="0" />
+                                                        <TextBlock Grid.Column="2" Text="Delay:" VerticalAlignment="Center" Margin="12,0,8,0" />
+                                                        <TextBox Grid.Column="3" Text="{Binding DelayMs}" Style="{StaticResource EditorTextBox}" Margin="0" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <WrapPanel Margin="0,10,0,0">
+                                            <Button Content="+ Step" Command="{Binding AddStepCommand}" Style="{StaticResource PrimaryBtn}" />
+                                            <Button Content="- Step" Command="{Binding RemoveStepCommand}" Style="{StaticResource SecondaryBtn}" />
+                                        </WrapPanel>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- ═══ TAB: AUTOPOT ═══ -->
+                <!-- ═══════════ TAB: AUTOPOT ═══════════ -->
                 <TabItem Header="Autopot">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,16,0,0">
@@ -766,58 +467,37 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Autopot Settings" FontSize="18" FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="Autopot Settings" FontSize="18" FontWeight="Bold" />
                                         <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.Autopot.Enabled}" VerticalAlignment="Center" />
                                     </Grid>
-
                                     <Separator Margin="0,12" />
-
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- HP POT -->
-                                        <StackPanel Margin="0,0,20,0">
-                                            <TextBlock Text="HP Potion" FontWeight="Bold" Margin="0,0,0,8" />
-                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" Margin="0" />
-                                            <TextBox Style="{StaticResource EditorTextBox}" Text="{Binding SelectedClient.Autopot.HpKey}" infra:HotkeyCapture.IsEnabled="True" />
-                                            <TextBlock Text="{Binding SelectedClient.Autopot.HpThreshold, StringFormat='Threshold: {0}%'}" Style="{StaticResource FieldLabel}" />
-                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.Autopot.HpThreshold}" TickFrequency="1" IsSnapToTickEnabled="True" />
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="HP Potion" FontWeight="Bold" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.Autopot.HpKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="{Binding SelectedClient.Autopot.HpThreshold, StringFormat='{}{0}%'}" />
+                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.Autopot.HpThreshold}" IsSnapToTickEnabled="True" />
                                         </StackPanel>
-
-                                        <!-- SP POT -->
-                                        <StackPanel Grid.Column="1" Margin="0,0,20,0">
-                                            <TextBlock Text="SP Potion" FontWeight="Bold" Margin="0,0,0,8" />
-                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" Margin="0" />
-                                            <TextBox Style="{StaticResource EditorTextBox}" Text="{Binding SelectedClient.Autopot.SpKey}" infra:HotkeyCapture.IsEnabled="True" />
-                                            <TextBlock Text="{Binding SelectedClient.Autopot.SpThreshold, StringFormat='Threshold: {0}%'}" Style="{StaticResource FieldLabel}" />
-                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.Autopot.SpThreshold}" TickFrequency="1" IsSnapToTickEnabled="True" />
+                                        <StackPanel>
+                                            <TextBlock Text="SP Potion" FontWeight="Bold" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.Autopot.SpKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="{Binding SelectedClient.Autopot.SpThreshold, StringFormat='{}{0}%'}" />
+                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.Autopot.SpThreshold}" IsSnapToTickEnabled="True" />
                                         </StackPanel>
-
-                                        <!-- YGG POT -->
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Yggdrasil Berry/Seed" FontWeight="Bold" Margin="0,0,0,8" />
-                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" Margin="0" />
-                                            <TextBox Style="{StaticResource EditorTextBox}" Text="{Binding SelectedClient.Autopot.YggKey}" infra:HotkeyCapture.IsEnabled="True" />
-                                            <TextBlock Text="{Binding SelectedClient.Autopot.YggThreshold, StringFormat='Threshold: {0}%'}" Style="{StaticResource FieldLabel}" />
-                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.Autopot.YggThreshold}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <TextBlock Text="Check Interval (ms)" Style="{StaticResource FieldLabel}" Margin="0,16,0,0" />
-                                    <Slider Minimum="15" Maximum="500" Value="{Binding SelectedClient.Autopot.DelayMs}" TickFrequency="5" IsSnapToTickEnabled="True" Width="200" HorizontalAlignment="Left" />
-                                    <TextBlock Text="{Binding SelectedClient.Autopot.DelayMs, StringFormat='{0} ms'}" Foreground="{StaticResource MutedInk}" FontSize="12" />
+                                    </UniformGrid>
+                                    <TextBlock Text="Check Interval (ms)" Style="{StaticResource FieldLabel}" />
+                                    <Slider Minimum="15" Maximum="500" Value="{Binding SelectedClient.Autopot.DelayMs}" IsSnapToTickEnabled="True" Width="200" HorizontalAlignment="Left" />
+                                    <TextBlock Text="{Binding SelectedClient.Autopot.DelayMs, StringFormat='{}{0} ms'}" FontSize="12" Foreground="{StaticResource MutedInk}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- ═══ TAB: AUTOBUFF ═══ -->
-                <TabItem Header="Autobuff">
+                <!-- ═══════════ TAB: YGG AUTOPOT ═══════════ -->
+                <TabItem Header="Ygg Autopot">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,16,0,0">
                             <Border Style="{StaticResource CardStyle}">
@@ -827,46 +507,83 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Autobuff Settings" FontSize="18" FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
-                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.Autobuff.Enabled}" VerticalAlignment="Center" />
+                                        <TextBlock Text="Yggdrasil Autopot Settings" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.YggAutopot.Enabled}" VerticalAlignment="Center" />
                                     </Grid>
-
                                     <Separator Margin="0,12" />
-
-                                    <ListBox ItemsSource="{Binding SelectedClient.Autobuff.Buffs}" BorderThickness="0" Background="Transparent">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="200" />
-                                                        <ColumnDefinition Width="100" />
-                                                        <ColumnDefinition Width="150" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                                    <TextBox Grid.Column="1" Text="{Binding StatusId}" Style="{StaticResource EditorTextBox}" Margin="4,0" ToolTip="Status ID" />
-                                                    <TextBox Grid.Column="2" Text="{Binding Key}" Style="{StaticResource EditorTextBox}" Margin="4,0" infra:HotkeyCapture.IsEnabled="True" />
-                                                    <CheckBox Grid.Column="3" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="8,0" />
-                                                    <Button Grid.Column="4" Content="Remove" 
-                                                            Command="{Binding DataContext.RemoveBuffCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource SecondaryBtn}" Padding="6,2" FontSize="11" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                    
-                                    <Button Content="+ Add Buff" 
-                                            Command="{Binding AddBuffCommand}"
-                                            Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="Ygg HP" FontWeight="Bold" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.YggAutopot.HpKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="{Binding SelectedClient.YggAutopot.HpThreshold, StringFormat='{}{0}%'}" />
+                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.YggAutopot.HpThreshold}" IsSnapToTickEnabled="True" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Ygg SP" FontWeight="Bold" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.YggAutopot.SpKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="{Binding SelectedClient.YggAutopot.SpThreshold, StringFormat='{}{0}%'}" />
+                                            <Slider Minimum="0" Maximum="100" Value="{Binding SelectedClient.YggAutopot.SpThreshold}" IsSnapToTickEnabled="True" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <TextBlock Text="Check Interval (ms)" Style="{StaticResource FieldLabel}" />
+                                    <Slider Minimum="15" Maximum="500" Value="{Binding SelectedClient.YggAutopot.DelayMs}" IsSnapToTickEnabled="True" Width="200" HorizontalAlignment="Left" />
+                                    <TextBlock Text="{Binding SelectedClient.YggAutopot.DelayMs, StringFormat='{}{0} ms'}" FontSize="12" Foreground="{StaticResource MutedInk}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- ═══ TAB: SPAMMER ═══ -->
+                <!-- ═══════════ TAB: SKILL TIMERS ═══════════ -->
+                <TabItem Header="Skill Timers">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Skill Timer / Auto-Refresh" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.SkillTimers.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <UniformGrid Columns="3">
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="Timer 1" FontWeight="Bold" />
+                                            <CheckBox Content="Enabled" IsChecked="{Binding SelectedClient.SkillTimers.Timer1.Enabled}" Margin="0,6,0,0" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer1.Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="Delay (seconds)" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer1.DelaySeconds}" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="Timer 2" FontWeight="Bold" />
+                                            <CheckBox Content="Enabled" IsChecked="{Binding SelectedClient.SkillTimers.Timer2.Enabled}" Margin="0,6,0,0" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer2.Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="Delay (seconds)" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer2.DelaySeconds}" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Timer 3" FontWeight="Bold" />
+                                            <CheckBox Content="Enabled" IsChecked="{Binding SelectedClient.SkillTimers.Timer3.Enabled}" Margin="0,6,0,0" />
+                                            <TextBlock Text="Key" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer3.Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <TextBlock Text="Delay (seconds)" Style="{StaticResource FieldLabel}" />
+                                            <TextBox Text="{Binding SelectedClient.SkillTimers.Timer3.DelaySeconds}" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: SPAMMER ═══════════ -->
                 <TabItem Header="Spammer">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,16,0,0">
@@ -877,45 +594,37 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Spammer Settings" FontSize="18" FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="Spammer Settings" FontSize="18" FontWeight="Bold" />
                                         <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.Spammer.Enabled}" VerticalAlignment="Center" />
                                     </Grid>
-
                                     <Separator Margin="0,12" />
-
                                     <ListBox ItemsSource="{Binding SelectedClient.Spammer.Keys}" BorderThickness="0" Background="Transparent">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid Margin="0,4">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="150" />
+                                                        <ColumnDefinition Width="120" />
                                                         <ColumnDefinition Width="100" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBox Text="{Binding Key}" Style="{StaticResource EditorTextBox}" Margin="4,0" infra:HotkeyCapture.IsEnabled="True" />
+                                                    <TextBox Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
                                                     <TextBox Grid.Column="1" Text="{Binding IntervalMs}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
                                                     <CheckBox Grid.Column="2" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="8,0" />
-                                                    <Button Grid.Column="3" Content="Remove" 
-                                                            Command="{Binding DataContext.RemoveSpammerKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource SecondaryBtn}" Padding="6,2" FontSize="11" />
+                                                    <Button Grid.Column="3" Content="x" Command="{Binding DataContext.RemoveSpammerKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    
-                                    <Button Content="+ Add Key" 
-                                            Command="{Binding AddSpammerKeyCommand}"
-                                            Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                    <Button Content="+ Add Key" Command="{Binding AddSpammerKeyCommand}" Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- ═══ TAB: RECOVERY ═══ -->
-                <TabItem Header="Recovery">
+                <!-- ═══════════ TAB: DEBUFF RECOVERY ═══════════ -->
+                <TabItem Header="Debuff Recovery">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,16,0,0">
                             <Border Style="{StaticResource CardStyle}">
@@ -925,56 +634,429 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Status Recovery Settings" FontSize="18" FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
-                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.Recovery.Enabled}" VerticalAlignment="Center" />
+                                        <TextBlock Text="Debuff Recovery" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.DebuffRecovery.Enabled}" VerticalAlignment="Center" />
                                     </Grid>
-
                                     <Separator Margin="0,12" />
-
-                                    <ListBox ItemsSource="{Binding SelectedClient.Recovery.Recoveries}" BorderThickness="0" Background="Transparent">
+                                    <UniformGrid Columns="2" Margin="0,0,0,12">
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="Group Status Key (Poison/Silence/Blind/Confusion/Curse)" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                                            <TextBox Text="{Binding SelectedClient.DebuffRecovery.GroupStatusKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Group New Status Key (CritWound/Bleeding/Freeze/Overheat)" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                                            <TextBox Text="{Binding SelectedClient.DebuffRecovery.GroupNewStatusKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <CheckBox Content="Auto Stand (sit-stand on debuff)" IsChecked="{Binding SelectedClient.DebuffRecovery.AutoStand}" Margin="0,0,0,12" />
+                                    <TextBlock Text="Individual Debuff Keys" FontWeight="Bold" Margin="0,0,0,8" />
+                                    <ListBox ItemsSource="{Binding SelectedClient.DebuffRecovery.Recoveries}" BorderThickness="0" Background="Transparent">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid Margin="0,4">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="200" />
-                                                        <ColumnDefinition Width="100" />
-                                                        <ColumnDefinition Width="150" />
+                                                        <ColumnDefinition Width="180" />
+                                                        <ColumnDefinition Width="80" />
+                                                        <ColumnDefinition Width="120" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                                                     <TextBox Grid.Column="1" Text="{Binding StatusId}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
-                                                    <TextBox Grid.Column="2" Text="{Binding Key}" Style="{StaticResource EditorTextBox}" Margin="4,0" infra:HotkeyCapture.IsEnabled="True" />
+                                                    <TextBox Grid.Column="2" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
                                                     <CheckBox Grid.Column="3" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="8,0" />
-                                                    <Button Grid.Column="4" Content="Remove" 
-                                                            Command="{Binding DataContext.RemoveRecoveryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource SecondaryBtn}" Padding="6,2" FontSize="11" />
+                                                    <Button Grid.Column="4" Content="x" Command="{Binding DataContext.RemoveDebuffRecoveryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    
-                                    <Button Content="+ Add Recovery" 
-                                            Command="{Binding AddRecoveryCommand}"
-                                            Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                    <Button Content="+ Add Debuff Entry" Command="{Binding AddDebuffRecoveryCommand}" Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+
+                <!-- ═══════════ TAB: AUTOBUFF SKILLS ═══════════ -->
+                <TabItem Header="Autobuff Skills">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Autobuff Skills" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.AutobuffSkills.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <TextBlock Text="Active Skill Buffs" FontWeight="Bold" Margin="0,0,0,8" />
+                                    <ListBox ItemsSource="{Binding SelectedClient.AutobuffSkills.Buffs}" BorderThickness="0" Background="Transparent">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="200" />
+                                                        <ColumnDefinition Width="80" />
+                                                        <ColumnDefinition Width="120" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                                    <TextBox Grid.Column="1" Text="{Binding StatusId}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <TextBox Grid.Column="2" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <CheckBox Grid.Column="3" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="8,0" />
+                                                    <Button Grid.Column="4" Content="x" Command="{Binding DataContext.RemoveSkillBuffCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Button Content="+ Add Skill Buff" Command="{Binding AddSkillBuffCommand}" Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                    <Separator Margin="0,16" />
+                                    <TextBlock Text="Skill Buff Catalog (click to add)" FontWeight="Bold" Margin="0,0,0,8" />
+                                    <ItemsControl ItemsSource="{Binding AvailableSkillBuffs}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}" ToolTip="{Binding Category}" Style="{StaticResource SecondaryBtn}" Padding="8,4" Margin="2,2" FontSize="11" Click="OnSkillBuffCatalogClick" Tag="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: AUTOBUFF ITEMS ═══════════ -->
+                <TabItem Header="Autobuff Items">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Autobuff Items / Stuff" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.AutobuffItems.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <TextBlock Text="Active Item Buffs" FontWeight="Bold" Margin="0,0,0,8" />
+                                    <ListBox ItemsSource="{Binding SelectedClient.AutobuffItems.Buffs}" BorderThickness="0" Background="Transparent">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="200" />
+                                                        <ColumnDefinition Width="80" />
+                                                        <ColumnDefinition Width="120" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                                    <TextBox Grid.Column="1" Text="{Binding StatusId}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <TextBox Grid.Column="2" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <CheckBox Grid.Column="3" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="8,0" />
+                                                    <Button Grid.Column="4" Content="x" Command="{Binding DataContext.RemoveItemBuffCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Button Content="+ Add Item Buff" Command="{Binding AddItemBuffCommand}" Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                    <Separator Margin="0,16" />
+                                    <TextBlock Text="Item Buff Catalog (click to add)" FontWeight="Bold" Margin="0,0,0,8" />
+                                    <ItemsControl ItemsSource="{Binding AvailableItemBuffs}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}" ToolTip="{Binding Category}" Style="{StaticResource SecondaryBtn}" Padding="8,4" Margin="2,2" FontSize="11" Click="OnItemBuffCatalogClick" Tag="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: MACRO SWITCH ═══════════ -->
+                <TabItem Header="Macro Switch">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Macro Switch (5 Lanes)" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.MacroSwitch.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <ListBox ItemsSource="{Binding SelectedClient.MacroSwitch.Lanes}" SelectedItem="{Binding SelectedSwitchLane}" MinHeight="60" MaxHeight="120" ItemContainerStyle="{StaticResource MainListItemStyle}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Id, StringFormat='Lane {0}'}" FontWeight="SemiBold" />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Border Margin="0,12,0,0" Padding="12" Background="#F8F8FA" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" DataContext="{Binding SelectedSwitchLane}">
+                                        <StackPanel>
+                                            <UniformGrid Columns="3">
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Text="Trigger Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding TriggerKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Text="Delay (ms)" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding DelayMs}" Style="{StaticResource EditorTextBox}" />
+                                                </StackPanel>
+                                                <StackPanel>
+                                                    <CheckBox Content="Infinity Loop" IsChecked="{Binding InfinityLoop}" Margin="0,16,0,0" />
+                                                </StackPanel>
+                                            </UniformGrid>
+                                            <TextBlock Text="Chain Entries" FontWeight="Bold" Margin="0,12,0,4" />
+                                            <ListBox ItemsSource="{Binding Entries}" BorderThickness="0" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="120" />
+                                                                <ColumnDefinition Width="80" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBox Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="0,0,4,0" />
+                                                            <TextBox Grid.Column="1" Text="{Binding DelayMs}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                            <CheckBox Grid.Column="2" Content="Click" IsChecked="{Binding HasClick}" VerticalAlignment="Center" Margin="8,0" />
+                                                            <Button Grid.Column="3" Content="x" Command="{Binding DataContext.RemoveSwitchEntryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <Button Content="+ Add Entry" Command="{Binding DataContext.AddSwitchEntryCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: ATK/DEF MODE ═══════════ -->
+                <TabItem Header="ATK x DEF">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="ATK x DEF Mode" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.AtkDefMode.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <UniformGrid Columns="3" Margin="0,0,0,12">
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="Spammer Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                            <TextBox Text="{Binding SelectedClient.AtkDefMode.SpammerKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                            <CheckBox Content="Click with Spam" IsChecked="{Binding SelectedClient.AtkDefMode.SpammerWithClick}" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="Spammer Delay (ms)" Style="{StaticResource FieldLabel}" Margin="0" />
+                                            <TextBox Text="{Binding SelectedClient.AtkDefMode.SpammerDelay}" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Switch Delay (ms)" Style="{StaticResource FieldLabel}" Margin="0" />
+                                            <TextBox Text="{Binding SelectedClient.AtkDefMode.SwitchDelay}" Style="{StaticResource EditorTextBox}" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="ATK Keys" FontWeight="Bold" />
+                                            <ListBox ItemsSource="{Binding SelectedClient.AtkDefMode.AtkKeys}" BorderThickness="0" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="100" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding SlotName}" VerticalAlignment="Center" />
+                                                            <TextBox Grid.Column="1" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                            <Button Grid.Column="2" Content="x" Command="{Binding DataContext.RemoveAtkKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <Button Content="+ ATK Slot" Command="{Binding AddAtkKeyCommand}" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="DEF Keys" FontWeight="Bold" />
+                                            <ListBox ItemsSource="{Binding SelectedClient.AtkDefMode.DefKeys}" BorderThickness="0" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="100" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding SlotName}" VerticalAlignment="Center" />
+                                                            <TextBox Grid.Column="1" Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                            <Button Grid.Column="2" Content="x" Command="{Binding DataContext.RemoveDefKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <Button Content="+ DEF Slot" Command="{Binding AddDefKeyCommand}" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: MACRO SONGS ═══════════ -->
+                <TabItem Header="Macro Songs">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Macro Songs (4 Lanes)" FontSize="18" FontWeight="Bold" />
+                                        <CheckBox Grid.Column="1" Content="Enabled" IsChecked="{Binding SelectedClient.MacroSongs.Enabled}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Separator Margin="0,12" />
+                                    <ListBox ItemsSource="{Binding SelectedClient.MacroSongs.Lanes}" SelectedItem="{Binding SelectedSongLane}" MinHeight="60" MaxHeight="120" ItemContainerStyle="{StaticResource MainListItemStyle}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Id, StringFormat='Song Lane {0}'}" FontWeight="SemiBold" />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Border Margin="0,12,0,0" Padding="12" Background="#F8F8FA" CornerRadius="8" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" DataContext="{Binding SelectedSongLane}">
+                                        <StackPanel>
+                                            <UniformGrid Columns="4">
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Text="Trigger Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding TriggerKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Text="Dagger Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding DaggerKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Text="Instrument Key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding InstrumentKey}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" />
+                                                </StackPanel>
+                                                <StackPanel>
+                                                    <TextBlock Text="Delay (ms)" Style="{StaticResource FieldLabel}" Margin="0" />
+                                                    <TextBox Text="{Binding DelayMs}" Style="{StaticResource EditorTextBox}" />
+                                                    <CheckBox Content="Infinity Loop" IsChecked="{Binding InfinityLoop}" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </UniformGrid>
+                                            <TextBlock Text="Song Entries" FontWeight="Bold" Margin="0,12,0,4" />
+                                            <ListBox ItemsSource="{Binding Entries}" BorderThickness="0" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="120" />
+                                                                <ColumnDefinition Width="80" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBox Text="{Binding Key}" infra:HotkeyCapture.IsEnabled="True" Style="{StaticResource EditorTextBox}" Margin="0,0,4,0" />
+                                                            <TextBox Grid.Column="1" Text="{Binding DelayMs}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                            <CheckBox Grid.Column="2" Content="Click" IsChecked="{Binding HasClick}" VerticalAlignment="Center" Margin="8,0" />
+                                                            <Button Grid.Column="3" Content="x" Command="{Binding DataContext.RemoveSongEntryCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <Button Content="+ Add Entry" Command="{Binding DataContext.AddSongEntryCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════════ TAB: SERVERS ═══════════ -->
+                <TabItem Header="Servers">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,16,0,0">
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Server Management" FontSize="18" FontWeight="Bold" />
+                                    <Separator Margin="0,12" />
+                                    <ListBox ItemsSource="{Binding Servers}" BorderThickness="0" Background="Transparent">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="160" />
+                                                        <ColumnDefinition Width="120" />
+                                                        <ColumnDefinition Width="140" />
+                                                        <ColumnDefinition Width="140" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Text="{Binding Name}" Style="{StaticResource EditorTextBox}" Margin="0,0,4,0" />
+                                                    <TextBox Grid.Column="1" Text="{Binding ProcessName}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <TextBox Grid.Column="2" Text="{Binding HpAddress}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <TextBox Grid.Column="3" Text="{Binding NameAddress}" Style="{StaticResource EditorTextBox}" Margin="4,0" />
+                                                    <Button Grid.Column="4" Content="x" Command="{Binding DataContext.RemoveServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource SecondaryBtn}" Padding="8,2" Margin="4,0,0,0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="160" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="140" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Name" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource MutedInk}" />
+                                        <TextBlock Grid.Column="1" Text="Process" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource MutedInk}" Margin="4,0" />
+                                        <TextBlock Grid.Column="2" Text="HP Address" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource MutedInk}" Margin="4,0" />
+                                        <TextBlock Grid.Column="3" Text="Name Address" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource MutedInk}" Margin="4,0" />
+                                    </Grid>
+                                    <Button Content="+ Add Server" Command="{Binding AddServerCommand}" Style="{StaticResource SecondaryBtn}" Margin="0,12,0,0" HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
             </TabControl>
 
             <!-- STATUS BAR -->
-            <Border Grid.Row="2" Margin="16,0,16,16"
-                    Padding="14,10"
-                    Background="{StaticResource CardBg}"
-                    BorderBrush="{StaticResource CardBorder}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <TextBlock Text="{Binding StatusMessage}"
-                           Foreground="{StaticResource InkBrush}"
-                           TextWrapping="Wrap" />
+            <Border Grid.Row="2" Margin="16,0,16,16" Padding="14,10" Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="8">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
             </Border>
         </Grid>
     </Grid>

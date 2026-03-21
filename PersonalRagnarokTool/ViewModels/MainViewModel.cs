@@ -35,6 +35,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _globalToggleStatusText = "ACTIVE";
     private bool _isSidebarCollapsed;
     private bool _isUpdatingBindingEditorFields;
+    private MacroChainLane? _selectedSongLane;
+    private MacroChainLane? _selectedSwitchLane;
 
     public MainViewModel(
         string configPath,
@@ -56,24 +58,60 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         AvailableWindows = new ObservableCollection<ClientWindowRef>();
 
+        // Client management
         AddClientCommand = new RelayCommand(AddClient);
         RemoveSelectedClientCommand = new RelayCommand(RemoveSelectedClient, () => SelectedClient is not null);
         SaveCommand = new RelayCommand(SaveConfig);
         RefreshWindowsCommand = new RelayCommand(RefreshWindows);
         BindSelectedClientCommand = new RelayCommand(BindSelectedClient, () => SelectedClient is not null && SelectedAvailableWindow is not null);
         UnbindSelectedClientCommand = new RelayCommand(UnbindSelectedClient, () => SelectedClient?.BoundWindow is not null);
+        ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
+
+        // Macro management
         AddBindingCommand = new RelayCommand(AddBinding, () => SelectedClient is not null);
         RemoveBindingCommand = new RelayCommand(RemoveSelectedBinding, () => SelectedBinding is not null);
         AddStepCommand = new RelayCommand(AddStep, () => SelectedBinding is not null);
         RemoveStepCommand = new RelayCommand(RemoveSelectedStep, () => SelectedStep is not null);
-        ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
 
+        // Autobuff (legacy)
         AddBuffCommand = new RelayCommand(AddBuff, () => SelectedClient is not null);
         RemoveBuffCommand = new RelayCommand<BuffConfig>(RemoveBuff, _ => SelectedClient is not null);
+
+        // Autobuff Skills
+        AddSkillBuffCommand = new RelayCommand(AddSkillBuff, () => SelectedClient is not null);
+        RemoveSkillBuffCommand = new RelayCommand<BuffConfig>(RemoveSkillBuff, _ => SelectedClient is not null);
+
+        // Autobuff Items
+        AddItemBuffCommand = new RelayCommand(AddItemBuff, () => SelectedClient is not null);
+        RemoveItemBuffCommand = new RelayCommand<BuffConfig>(RemoveItemBuff, _ => SelectedClient is not null);
+
+        // Spammer
         AddSpammerKeyCommand = new RelayCommand(AddSpammerKey, () => SelectedClient is not null);
         RemoveSpammerKeyCommand = new RelayCommand<SpammerKey>(RemoveSpammerKey, _ => SelectedClient is not null);
+
+        // Recovery (legacy)
         AddRecoveryCommand = new RelayCommand(AddRecovery, () => SelectedClient is not null);
         RemoveRecoveryCommand = new RelayCommand<RecoveryConfig>(RemoveRecovery, _ => SelectedClient is not null);
+
+        // Debuff Recovery
+        AddDebuffRecoveryCommand = new RelayCommand(AddDebuffRecovery, () => SelectedClient is not null);
+        RemoveDebuffRecoveryCommand = new RelayCommand<RecoveryConfig>(RemoveDebuffRecovery, _ => SelectedClient is not null);
+
+        // ATK/DEF
+        AddAtkKeyCommand = new RelayCommand(AddAtkKey, () => SelectedClient is not null);
+        RemoveAtkKeyCommand = new RelayCommand<AtkDefKeyEntry>(RemoveAtkKey, _ => SelectedClient is not null);
+        AddDefKeyCommand = new RelayCommand(AddDefKey, () => SelectedClient is not null);
+        RemoveDefKeyCommand = new RelayCommand<AtkDefKeyEntry>(RemoveDefKey, _ => SelectedClient is not null);
+
+        // Macro Song / Switch
+        AddSongEntryCommand = new RelayCommand(AddSongEntry, () => SelectedSongLane is not null);
+        RemoveSongEntryCommand = new RelayCommand<MacroChainEntry>(RemoveSongEntry, _ => SelectedSongLane is not null);
+        AddSwitchEntryCommand = new RelayCommand(AddSwitchEntry, () => SelectedSwitchLane is not null);
+        RemoveSwitchEntryCommand = new RelayCommand<MacroChainEntry>(RemoveSwitchEntry, _ => SelectedSwitchLane is not null);
+
+        // Server management
+        AddServerCommand = new RelayCommand(AddServer);
+        RemoveServerCommand = new RelayCommand<ServerEntry>(RemoveServer);
 
         AttachConfigSubscriptions();
         _hotkeyService.HotkeyPressed += OnHotkeyPressed;
@@ -98,6 +136,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectedClient, value))
             {
                 SelectedBinding = value?.Bindings.FirstOrDefault();
+                SelectedSongLane = value?.MacroSongs.Lanes.FirstOrDefault();
+                SelectedSwitchLane = value?.MacroSwitch.Lanes.FirstOrDefault();
                 RefreshSelectedClientRuntimeState();
                 RefreshCommandStates();
             }
@@ -141,6 +181,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectedStep, value))
                 RefreshCommandStates();
         }
+    }
+
+    public MacroChainLane? SelectedSongLane
+    {
+        get => _selectedSongLane;
+        set => SetProperty(ref _selectedSongLane, value);
+    }
+
+    public MacroChainLane? SelectedSwitchLane
+    {
+        get => _selectedSwitchLane;
+        set => SetProperty(ref _selectedSwitchLane, value);
     }
 
     public InputMethod[] InputMethods => Enum.GetValues<InputMethod>();
@@ -290,6 +342,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string SidebarToggleLabel => IsSidebarCollapsed ? ">>" : "<<";
 
     // ═══════════════════════════════════════════════════════════
+    //  Server management
+    // ═══════════════════════════════════════════════════════════
+
+    public ObservableCollection<ServerEntry> Servers => _config.Servers.Servers;
+
+    // ═══════════════════════════════════════════════════════════
+    //  Buff catalog (static data for UI)
+    // ═══════════════════════════════════════════════════════════
+
+    public List<BuffDefinition> AvailableSkillBuffs { get; } = BuffCatalog.GetAllSkillBuffs();
+    public List<BuffDefinition> AvailableItemBuffs { get; } = BuffCatalog.GetAllItemBuffs();
+    public List<BuffDefinition> AvailableDebuffs { get; } = BuffCatalog.GetDebuffs();
+    public List<string> SkillBuffCategories { get; } = BuffCatalog.GetAllSkillBuffs().Select(b => b.Category).Distinct().ToList();
+    public List<string> ItemBuffCategories { get; } = BuffCatalog.GetAllItemBuffs().Select(b => b.Category).Distinct().ToList();
+
+    // ═══════════════════════════════════════════════════════════
     //  Commands
     // ═══════════════════════════════════════════════════════════
 
@@ -305,44 +373,118 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RemoveStepCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
 
+    // Autobuff (legacy)
     public RelayCommand AddBuffCommand { get; }
     public RelayCommand<BuffConfig> RemoveBuffCommand { get; }
+
+    // Autobuff Skills
+    public RelayCommand AddSkillBuffCommand { get; }
+    public RelayCommand<BuffConfig> RemoveSkillBuffCommand { get; }
+
+    // Autobuff Items
+    public RelayCommand AddItemBuffCommand { get; }
+    public RelayCommand<BuffConfig> RemoveItemBuffCommand { get; }
+
+    // Spammer
     public RelayCommand AddSpammerKeyCommand { get; }
     public RelayCommand<SpammerKey> RemoveSpammerKeyCommand { get; }
+
+    // Recovery (legacy)
     public RelayCommand AddRecoveryCommand { get; }
     public RelayCommand<RecoveryConfig> RemoveRecoveryCommand { get; }
 
-    // ... existing code ...
+    // Debuff Recovery
+    public RelayCommand AddDebuffRecoveryCommand { get; }
+    public RelayCommand<RecoveryConfig> RemoveDebuffRecoveryCommand { get; }
 
-    private void AddBuff()
+    // ATK/DEF
+    public RelayCommand AddAtkKeyCommand { get; }
+    public RelayCommand<AtkDefKeyEntry> RemoveAtkKeyCommand { get; }
+    public RelayCommand AddDefKeyCommand { get; }
+    public RelayCommand<AtkDefKeyEntry> RemoveDefKeyCommand { get; }
+
+    // Macro Song / Switch
+    public RelayCommand AddSongEntryCommand { get; }
+    public RelayCommand<MacroChainEntry> RemoveSongEntryCommand { get; }
+    public RelayCommand AddSwitchEntryCommand { get; }
+    public RelayCommand<MacroChainEntry> RemoveSwitchEntryCommand { get; }
+
+    // Servers
+    public RelayCommand AddServerCommand { get; }
+    public RelayCommand<ServerEntry> RemoveServerCommand { get; }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Feature CRUD
+    // ═══════════════════════════════════════════════════════════
+
+    private void AddBuff() => SelectedClient?.Autobuff.Buffs.Add(new BuffConfig { Name = "New Buff" });
+    private void RemoveBuff(BuffConfig? buff) { if (buff != null) SelectedClient?.Autobuff.Buffs.Remove(buff); }
+
+    private void AddSkillBuff() => SelectedClient?.AutobuffSkills.Buffs.Add(new BuffConfig { Name = "New Skill Buff" });
+    private void RemoveSkillBuff(BuffConfig? buff) { if (buff != null) SelectedClient?.AutobuffSkills.Buffs.Remove(buff); }
+
+    private void AddItemBuff() => SelectedClient?.AutobuffItems.Buffs.Add(new BuffConfig { Name = "New Item Buff" });
+    private void RemoveItemBuff(BuffConfig? buff) { if (buff != null) SelectedClient?.AutobuffItems.Buffs.Remove(buff); }
+
+    private void AddSpammerKey() => SelectedClient?.Spammer.Keys.Add(new SpammerKey());
+    private void RemoveSpammerKey(SpammerKey? key) { if (key != null) SelectedClient?.Spammer.Keys.Remove(key); }
+
+    private void AddRecovery() => SelectedClient?.Recovery.Recoveries.Add(new RecoveryConfig { Name = "New Status" });
+    private void RemoveRecovery(RecoveryConfig? rec) { if (rec != null) SelectedClient?.Recovery.Recoveries.Remove(rec); }
+
+    private void AddDebuffRecovery() => SelectedClient?.DebuffRecovery.Recoveries.Add(new RecoveryConfig { Name = "New Debuff" });
+    private void RemoveDebuffRecovery(RecoveryConfig? rec) { if (rec != null) SelectedClient?.DebuffRecovery.Recoveries.Remove(rec); }
+
+    private void AddAtkKey()
     {
-        SelectedClient?.Autobuff.Buffs.Add(new BuffConfig { Name = "New Buff" });
+        if (SelectedClient is null) return;
+        int n = SelectedClient.AtkDefMode.AtkKeys.Count + 1;
+        SelectedClient.AtkDefMode.AtkKeys.Add(new AtkDefKeyEntry { SlotName = $"ATK Slot {n}" });
+    }
+    private void RemoveAtkKey(AtkDefKeyEntry? key) { if (key != null) SelectedClient?.AtkDefMode.AtkKeys.Remove(key); }
+
+    private void AddDefKey()
+    {
+        if (SelectedClient is null) return;
+        int n = SelectedClient.AtkDefMode.DefKeys.Count + 1;
+        SelectedClient.AtkDefMode.DefKeys.Add(new AtkDefKeyEntry { SlotName = $"DEF Slot {n}" });
+    }
+    private void RemoveDefKey(AtkDefKeyEntry? key) { if (key != null) SelectedClient?.AtkDefMode.DefKeys.Remove(key); }
+
+    private void AddSongEntry() => SelectedSongLane?.Entries.Add(new MacroChainEntry());
+    private void RemoveSongEntry(MacroChainEntry? entry) { if (entry != null) SelectedSongLane?.Entries.Remove(entry); }
+
+    private void AddSwitchEntry() => SelectedSwitchLane?.Entries.Add(new MacroChainEntry());
+    private void RemoveSwitchEntry(MacroChainEntry? entry) { if (entry != null) SelectedSwitchLane?.Entries.Remove(entry); }
+
+    private void AddServer() => Servers.Add(new ServerEntry());
+    private void RemoveServer(ServerEntry? server) { if (server != null) Servers.Remove(server); }
+
+    public void AddBuffFromCatalog(BuffDefinition def, string target)
+    {
+        if (SelectedClient is null) return;
+        var buff = new BuffConfig { Name = def.Name, StatusId = def.StatusId, Key = "None", Enabled = true };
+        if (target == "skill")
+            SelectedClient.AutobuffSkills.Buffs.Add(buff);
+        else if (target == "item")
+            SelectedClient.AutobuffItems.Buffs.Add(buff);
     }
 
-    private void RemoveBuff(BuffConfig buff)
+    public void AddDebuffFromCatalog(BuffDefinition def)
     {
-        SelectedClient?.Autobuff.Buffs.Remove(buff);
+        if (SelectedClient is null) return;
+        SelectedClient.DebuffRecovery.Recoveries.Add(new RecoveryConfig
+        {
+            Name = def.Name,
+            StatusId = def.StatusId,
+            Key = "None",
+            Enabled = true
+        });
     }
 
-    private void AddSpammerKey()
-    {
-        SelectedClient?.Spammer.Keys.Add(new SpammerKey());
-    }
-
-    private void RemoveSpammerKey(SpammerKey key)
-    {
-        SelectedClient?.Spammer.Keys.Remove(key);
-    }
-
-    private void AddRecovery()
-    {
-        SelectedClient?.Recovery.Recoveries.Add(new RecoveryConfig { Name = "New Status" });
-    }
-
-    private void RemoveRecovery(RecoveryConfig rec)
-    {
-        SelectedClient?.Recovery.Recoveries.Remove(rec);
-    }
+    // ═══════════════════════════════════════════════════════════
+    //  4R Feature Sync
+    // ═══════════════════════════════════════════════════════════
 
     private void Sync4RFeatures(ClientProfile profile)
     {
@@ -350,22 +492,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         int pid = profile.BoundWindow.ProcessId;
 
         AgentPipeClient.SyncAutopot(pid, profile.Autopot);
+        AgentPipeClient.SyncYggAutopot(pid, profile.YggAutopot);
         AgentPipeClient.SyncAutobuff(pid, profile.Autobuff);
+        AgentPipeClient.SyncAutobuffSkills(pid, profile.AutobuffSkills);
+        AgentPipeClient.SyncAutobuffItems(pid, profile.AutobuffItems);
         AgentPipeClient.SyncSpammer(pid, profile.Spammer);
         AgentPipeClient.SyncRecovery(pid, profile.Recovery);
+        AgentPipeClient.SyncDebuffRecovery(pid, profile.DebuffRecovery);
+        AgentPipeClient.SyncSkillTimers(pid, profile.SkillTimers);
+        AgentPipeClient.SyncAtkDefMode(pid, profile.AtkDefMode);
+        AgentPipeClient.SyncMacroSongs(pid, profile.MacroSongs);
+        AgentPipeClient.SyncMacroSwitch(pid, profile.MacroSwitch);
     }
 
     // ═══════════════════════════════════════════════════════════
     //  Public API
     // ═══════════════════════════════════════════════════════════
 
-    public void AttachWindowHandle(IntPtr windowHandle)
-    {
-        // Window handle kept for other uses; hotkey detection is now
-        // GetAsyncKeyState polling — no OS hotkey registration needed.
-    }
-
-    /// <summary>Called after the polling thread starts to feed it the initial key map.</summary>
+    public void AttachWindowHandle(IntPtr windowHandle) { }
     public void RefreshHotkeyPolling() => RefreshHotkeys();
 
     // ═══════════════════════════════════════════════════════════
@@ -383,7 +527,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void ApplyBindingNumericFieldChanges()
     {
         if (_isUpdatingBindingEditorFields || SelectedBinding is null) return;
-
         if (TryParseInt(SelectedBindingIntervalMsText, out int intervalMs) && intervalMs >= 25)
             SelectedBinding.IntervalMs = intervalMs;
         else
@@ -456,7 +599,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedClient.BoundWindow = SelectedAvailableWindow;
         RefreshSelectedClientRuntimeState();
 
-        // Automatic Stealth Injection
         try
         {
             int pid = SelectedAvailableWindow.ProcessId;
@@ -469,8 +611,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 if (File.Exists(payloadPath))
                 {
                     bool success = ManualMapInjector.Inject(pid, payloadPath);
-                    StatusMessage = success 
-                        ? $"Stealth Injected: {payload}" 
+                    StatusMessage = success
+                        ? $"Stealth Injected: {payload}"
                         : $"Failed to inject {payload}. Check logs.";
                 }
             }
@@ -637,20 +779,59 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             binding.PropertyChanged += OnBindingPropertyChanged;
 
         // 4R Feature Subscriptions
-        profile.Autopot.PropertyChanged += (s, e) => Sync4RFeatures(profile);
-        profile.Autobuff.PropertyChanged += (s, e) => Sync4RFeatures(profile);
-        profile.Autobuff.Buffs.CollectionChanged += (s, e) => {
-            if (e.NewItems != null) foreach (BuffConfig b in e.NewItems) b.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
-            Sync4RFeatures(profile);
-        };
-        profile.Spammer.PropertyChanged += (s, e) => Sync4RFeatures(profile);
-        profile.Spammer.Keys.CollectionChanged += (s, e) => {
-            if (e.NewItems != null) foreach (SpammerKey k in e.NewItems) k.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
-            Sync4RFeatures(profile);
-        };
-        profile.Recovery.PropertyChanged += (s, e) => Sync4RFeatures(profile);
-        profile.Recovery.Recoveries.CollectionChanged += (s, e) => {
-            if (e.NewItems != null) foreach (RecoveryConfig r in e.NewItems) r.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
+        void SyncAll(object? s, object e) => Sync4RFeatures(profile);
+
+        profile.Autopot.PropertyChanged += SyncAll;
+        profile.YggAutopot.PropertyChanged += SyncAll;
+        profile.SkillTimers.PropertyChanged += SyncAll;
+        profile.SkillTimers.Timer1.PropertyChanged += SyncAll;
+        profile.SkillTimers.Timer2.PropertyChanged += SyncAll;
+        profile.SkillTimers.Timer3.PropertyChanged += SyncAll;
+        profile.AtkDefMode.PropertyChanged += SyncAll;
+        profile.MacroSongs.PropertyChanged += SyncAll;
+        profile.MacroSwitch.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.Autobuff.Buffs, profile);
+        profile.Autobuff.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.AutobuffSkills.Buffs, profile);
+        profile.AutobuffSkills.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.AutobuffItems.Buffs, profile);
+        profile.AutobuffItems.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.Spammer.Keys, profile);
+        profile.Spammer.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.Recovery.Recoveries, profile);
+        profile.Recovery.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.DebuffRecovery.Recoveries, profile);
+        profile.DebuffRecovery.PropertyChanged += SyncAll;
+
+        AttachCollectionSync(profile.AtkDefMode.AtkKeys, profile);
+        AttachCollectionSync(profile.AtkDefMode.DefKeys, profile);
+
+        foreach (var lane in profile.MacroSongs.Lanes)
+        {
+            lane.PropertyChanged += SyncAll;
+            AttachCollectionSync(lane.Entries, profile);
+        }
+
+        foreach (var lane in profile.MacroSwitch.Lanes)
+        {
+            lane.PropertyChanged += SyncAll;
+            AttachCollectionSync(lane.Entries, profile);
+        }
+    }
+
+    private void AttachCollectionSync<T>(ObservableCollection<T> collection, ClientProfile profile) where T : ObservableObject
+    {
+        collection.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null)
+                foreach (T item in e.NewItems)
+                    item.PropertyChanged += (s2, e2) => Sync4RFeatures(profile);
             Sync4RFeatures(profile);
         };
     }
@@ -696,7 +877,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Hotkey polling (GetAsyncKeyState — like YXExt.dll)
+    //  Hotkey polling
     // ═══════════════════════════════════════════════════════════
 
     private void RefreshHotkeys()
@@ -707,7 +888,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Build per-client toggle list
         var clientToggles = new List<(ToggleCombo combo, string tag)>();
         foreach (var profile in ClientProfiles)
         {
@@ -715,7 +895,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 clientToggles.Add((profile.ClientToggle, $"TOGGLE:client:{profile.Id}"));
         }
 
-        // Feed all monitored keys into the polling thread
         var errors = _hotkeyService.RefreshMonitoredKeys(
             ClientProfiles
                 .Where(p => p.IsEnabled && p.HasLiveWindow)
@@ -736,7 +915,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            // Toggle handling
             if (hotkey == "TOGGLE:global")
             {
                 bool nowActive = _toggleService.ToggleGlobal();
@@ -768,10 +946,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            // System must be active
             if (!_toggleService.IsGlobalActive) return;
 
-            // Find binding
             string normalizedHotkey = HotkeyText.Normalize(hotkey);
             MacroBinding? binding = null;
             ClientProfile? ownerProfile = null;
@@ -794,7 +970,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             var window = ownerProfile.BoundWindow;
 
-            // Toggle turbo: press to start, press again to stop
             if (_turboEngine.IsRunning(binding.Id))
             {
                 _turboEngine.StopTurbo(binding.Id);

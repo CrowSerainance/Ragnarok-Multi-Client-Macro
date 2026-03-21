@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
+using Button = System.Windows.Controls.Button;
+using PersonalRagnarokTool.Core.Models;
 using PersonalRagnarokTool.Services;
 using PersonalRagnarokTool.ViewModels;
 
@@ -21,12 +23,22 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // Provide the window handle for any future use (window targeting, etc.)
         var hwnd = new WindowInteropHelper(this).Handle;
         _viewModel.AttachWindowHandle(hwnd);
 
-        // Start the GetAsyncKeyState polling thread (replaces RegisterHotKey)
         _hotkeyService.Start();
         _viewModel.RefreshHotkeyPolling();
+    }
+
+    private void OnSkillBuffCatalogClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is BuffDefinition def)
+            _viewModel.AddBuffFromCatalog(def, "skill");
+    }
+
+    private void OnItemBuffCatalogClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is BuffDefinition def)
+            _viewModel.AddBuffFromCatalog(def, "item");
     }
 }

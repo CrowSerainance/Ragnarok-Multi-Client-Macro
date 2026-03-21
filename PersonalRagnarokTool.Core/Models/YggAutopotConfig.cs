@@ -2,13 +2,13 @@ using PersonalRagnarokTool.Core.Infrastructure;
 
 namespace PersonalRagnarokTool.Core.Models;
 
-public sealed class AutopotConfig : ObservableObject
+public sealed class YggAutopotConfig : ObservableObject
 {
     private bool _enabled;
     private string _hpKey = "None";
-    private int _hpThreshold = 50;
+    private int _hpThreshold = 20;
     private string _spKey = "None";
-    private int _spThreshold = 30;
+    private int _spThreshold = 20;
     private int _delayMs = 50;
 
     public bool Enabled

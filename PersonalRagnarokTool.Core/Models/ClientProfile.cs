@@ -64,10 +64,19 @@ public sealed class ClientProfile : ObservableObject
 
     public ObservableCollection<MacroBinding> Bindings { get; init; } = new();
 
+    // ─── Feature Configs ─────────────────────────────────────
     public AutopotConfig Autopot { get; set; } = new();
+    public YggAutopotConfig YggAutopot { get; set; } = new();
     public AutobuffConfig Autobuff { get; set; } = new();
+    public AutobuffSkillsConfig AutobuffSkills { get; set; } = new();
+    public AutobuffItemsConfig AutobuffItems { get; set; } = new();
     public SpammerConfig Spammer { get; set; } = new();
     public StatusRecoveryConfig Recovery { get; set; } = new();
+    public DebuffRecoveryConfig DebuffRecovery { get; set; } = new();
+    public SkillTimerConfig SkillTimers { get; set; } = new();
+    public AtkDefModeConfig AtkDefMode { get; set; } = new();
+    public MacroSongConfig MacroSongs { get; set; } = new();
+    public MacroSwitchConfig MacroSwitch { get; set; } = new();
 
     public string BoundWindowDisplayText => BoundWindow?.DisplayText ?? "Not bound";
 

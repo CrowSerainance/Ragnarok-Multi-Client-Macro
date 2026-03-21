@@ -46,3 +46,27 @@ public sealed class AutobuffConfig : ObservableObject
         set => SetProperty(ref _enabled, value);
     }
 }
+
+public sealed class AutobuffSkillsConfig : ObservableObject
+{
+    private bool _enabled;
+    public ObservableCollection<BuffConfig> Buffs { get; set; } = new();
+
+    public bool Enabled
+    {
+        get => _enabled;
+        set => SetProperty(ref _enabled, value);
+    }
+}
+
+public sealed class AutobuffItemsConfig : ObservableObject
+{
+    private bool _enabled;
+    public ObservableCollection<BuffConfig> Buffs { get; set; } = new();
+
+    public bool Enabled
+    {
+        get => _enabled;
+        set => SetProperty(ref _enabled, value);
+    }
+}

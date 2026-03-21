@@ -35,4 +35,5 @@ public sealed class AppConfig : ObservableObject
     }
 
     public ObservableCollection<ClientProfile> ClientProfiles { get; set; } = new();
+    public ServerListConfig Servers { get; set; } = new();
 }
