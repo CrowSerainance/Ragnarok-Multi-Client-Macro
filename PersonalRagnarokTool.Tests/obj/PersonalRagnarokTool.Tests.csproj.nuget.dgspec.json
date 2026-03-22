@@ -10,7 +10,7 @@
         "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
         "projectName": "PersonalRagnarokTool.Core",
         "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
-        "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
+        "packagesPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\",
         "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
@@ -76,7 +76,7 @@
         "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
         "projectName": "PersonalRagnarokTool.Tests",
         "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
-        "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
+        "packagesPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\",
         "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [

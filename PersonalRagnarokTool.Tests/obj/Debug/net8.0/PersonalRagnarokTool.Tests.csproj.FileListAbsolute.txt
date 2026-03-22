@@ -1,0 +1,7 @@
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\bin\Debug\net8.0\CoverletSourceRootsMapping_PersonalRagnarokTool.Tests
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.csproj.AssemblyReference.cache
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.GeneratedMSBuildEditorConfig.editorconfig
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.AssemblyInfoInputs.cache
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.AssemblyInfo.cs
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.csproj.CoreCompileInputs.cache
+E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Tests\obj\Debug\net8.0\PersonalRagnarokTool.Tests.sourcelink.json

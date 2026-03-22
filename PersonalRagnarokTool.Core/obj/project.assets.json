@@ -8,7 +8,7 @@
     "net8.0": []
   },
   "packageFolders": {
-    "C:\\Users\\chris\\.nuget\\packages\\": {},
+    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\": {},
     "G:\\VS2022\\Shared\\NuGetPackages": {}
   },
   "project": {
@@ -17,7 +17,7 @@
       "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
       "projectName": "PersonalRagnarokTool.Core",
       "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\PersonalRagnarokTool.Core.csproj",
-      "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
+      "packagesPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\",
       "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Core\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [

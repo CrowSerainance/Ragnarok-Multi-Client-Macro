@@ -5524,7 +5524,7 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\chris\\.nuget\\packages\\": {},
+    "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\": {},
     "G:\\VS2022\\Shared\\NuGetPackages": {}
   },
   "project": {
@@ -5533,7 +5533,7 @@
       "projectUniqueName": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
       "projectName": "PersonalRagnarokTool.Tests",
       "projectPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\PersonalRagnarokTool.Tests.csproj",
-      "packagesPath": "C:\\Users\\chris\\.nuget\\packages\\",
+      "packagesPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\.dotnet\\.nuget\\packages\\",
       "outputPath": "E:\\RAGNAROK ONLINE\\Personal Ragnarok Tool\\PersonalRagnarokTool.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
