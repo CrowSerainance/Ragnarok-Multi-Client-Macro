@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "../Core/Types.h"
+#include "../Types.h"
 
 namespace prt {
 

@@ -16,9 +16,11 @@ add_library(PersonalRagnarokTool SHARED
     # Bot Logic
     Source/Bot/GameReader.cpp
     Source/Bot/BotFsm.cpp
+    Source/Bot/FeatureManager.cpp
     
     # Actuator
     Source/Actuator/InputInjector.cpp
+    Source/Actuator/AgentPipeServer.cpp
     
     # ImGui (Assume downloaded via setup_dependencies.ps1)
     vendor/imgui/imgui.cpp

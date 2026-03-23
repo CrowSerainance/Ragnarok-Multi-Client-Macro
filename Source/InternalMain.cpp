@@ -7,9 +7,9 @@
 #include "Types.h"
 #include "ConfigService.h"
 #include "MemoryReader.h"
-#include "../Bot/GameReader.h"
-#include "../Bot/BotFsm.h"
-#include "../Bot/FeatureManager.h"
+#include "Bot/GameReader.h"
+#include "Bot/BotFsm.h"
+#include "Bot/FeatureManager.h"
 #include "Actuator/AgentPipeServer.h"
 
 // ImGui

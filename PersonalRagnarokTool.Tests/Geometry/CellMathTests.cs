@@ -33,8 +33,8 @@ public sealed class CellMathTests
     [Fact]
     public void ApplyOffset_AddsCorrectly()
     {
-        var center = new Core.Models.PixelPoint(500, 400);
-        var offset = new Core.Models.PixelPoint(96, -64);
+        var center = new PixelPoint(500, 400);
+        var offset = new PixelPoint(96, -64);
         var result = CellMath.ApplyOffset(center, offset);
         Assert.Equal(596, result.X);
         Assert.Equal(336, result.Y);

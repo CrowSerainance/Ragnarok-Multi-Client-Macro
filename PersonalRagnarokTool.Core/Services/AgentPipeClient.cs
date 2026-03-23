@@ -26,43 +26,77 @@ public sealed class AgentPipeClient
         public uint PayloadLength;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct SyncAutopotPayload
-    {
-        public bool Enabled;
-        public ushort HpKey;
-        public int HpThreshold;
-        public ushort SpKey;
-        public int SpThreshold;
-        public int DelayMs;
-    }
-
     public static void SyncAutopot(int pid, AutopotConfig config)
     {
-        var payload = new SyncAutopotPayload
-        {
-            Enabled = config.Enabled,
-            HpKey = VirtualKeyMap.GetVk(config.HpKey),
-            HpThreshold = config.HpThreshold,
-            SpKey = VirtualKeyMap.GetVk(config.SpKey),
-            SpThreshold = config.SpThreshold,
-            DelayMs = config.DelayMs
-        };
-        Send(pid, CMD_SYNC_AUTOPOT, payload);
+        SendRaw(pid, CMD_SYNC_AUTOPOT, BuildAutopotPayload(config, null));
+    }
+
+    public static void SyncAutopot(int pid, AutopotConfig config, YggAutopotConfig? yggConfig)
+    {
+        SendRaw(pid, CMD_SYNC_AUTOPOT, BuildAutopotPayload(config, yggConfig));
     }
 
     public static void SyncYggAutopot(int pid, YggAutopotConfig config)
     {
-        var payload = new SyncAutopotPayload
-        {
-            Enabled = config.Enabled,
-            HpKey = VirtualKeyMap.GetVk(config.HpKey),
-            HpThreshold = config.HpThreshold,
-            SpKey = VirtualKeyMap.GetVk(config.SpKey),
-            SpThreshold = config.SpThreshold,
-            DelayMs = config.DelayMs
-        };
-        Send(pid, CMD_SYNC_YGG_AUTOPOT, payload);
+        SendRaw(pid, CMD_SYNC_YGG_AUTOPOT, BuildLegacyYggPayload(config));
+    }
+
+    internal static byte[] BuildAutopotPayload(AutopotConfig config, YggAutopotConfig? yggConfig)
+    {
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        bool yggEnabled = yggConfig?.Enabled == true;
+        ushort yggKey = ResolveYggKey(yggConfig);
+        int yggThreshold = ResolveYggThreshold(yggConfig, yggKey);
+
+        bw.Write(config.Enabled || (yggEnabled && yggKey != 0));
+        bw.Write(VirtualKeyMap.GetVk(config.HpKey));
+        bw.Write(config.HpThreshold);
+        bw.Write(VirtualKeyMap.GetVk(config.SpKey));
+        bw.Write(config.SpThreshold);
+        bw.Write(yggKey);
+        bw.Write(yggThreshold);
+        bw.Write(config.DelayMs);
+
+        return ms.ToArray();
+    }
+
+    private static byte[] BuildLegacyYggPayload(YggAutopotConfig config)
+    {
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+        bw.Write(config.Enabled);
+        bw.Write(ResolveYggKey(config));
+        bw.Write(ResolveYggThreshold(config, ResolveYggKey(config)));
+        bw.Write(config.DelayMs);
+        return ms.ToArray();
+    }
+
+    private static ushort ResolveYggKey(YggAutopotConfig? yggConfig)
+    {
+        if (yggConfig?.Enabled != true)
+            return 0;
+
+        ushort hpKey = VirtualKeyMap.GetVk(yggConfig.HpKey);
+        ushort spKey = VirtualKeyMap.GetVk(yggConfig.SpKey);
+
+        if (hpKey != 0 && spKey != 0 && hpKey != spKey)
+            return 0;
+
+        return hpKey != 0 ? hpKey : spKey;
+    }
+
+    private static int ResolveYggThreshold(YggAutopotConfig? yggConfig, ushort yggKey)
+    {
+        if (yggConfig?.Enabled != true || yggKey == 0)
+            return 0;
+
+        var thresholds = new[] { yggConfig.HpThreshold, yggConfig.SpThreshold }
+            .Where(value => value > 0)
+            .ToArray();
+
+        return thresholds.Length == 0 ? 0 : thresholds.Min();
     }
 
     public static void SyncAutobuff(int pid, AutobuffConfig config)
@@ -168,8 +202,8 @@ public sealed class AgentPipeClient
         bw.Write(config.SpammerDelay);
         bw.Write(config.SwitchDelay);
         bw.Write((uint)config.AtkKeys.Count);
-        foreach (var k in config.AtkKeys) bw.Write(VirtualKeyMap.GetVk(k.Key));
         bw.Write((uint)config.DefKeys.Count);
+        foreach (var k in config.AtkKeys) bw.Write(VirtualKeyMap.GetVk(k.Key));
         foreach (var k in config.DefKeys) bw.Write(VirtualKeyMap.GetVk(k.Key));
         SendRaw(pid, CMD_SYNC_ATK_DEF, ms.ToArray());
     }
@@ -208,17 +242,6 @@ public sealed class AgentPipeClient
         SendRaw(pid, cmdId, ms.ToArray());
     }
 
-    private static void Send<T>(int pid, uint cmdId, T payload) where T : struct
-    {
-        int size = Marshal.SizeOf(payload);
-        byte[] arr = new byte[size];
-        IntPtr ptr = Marshal.AllocHGlobal(size);
-        Marshal.StructureToPtr(payload, ptr, true);
-        Marshal.Copy(ptr, arr, 0, size);
-        Marshal.FreeHGlobal(ptr);
-        SendRaw(pid, cmdId, arr);
-    }
-
     private static void SendRaw(int pid, uint cmdId, byte[] payload)
     {
         string pipeName = $"PRT_Agent_{pid}";
@@ -231,7 +254,10 @@ public sealed class AgentPipeClient
             if (payload.Length > 0)
                 pipe.Write(payload, 0, payload.Length);
         }
-        catch { /* Agent not injected or busy */ }
+        catch
+        {
+            // Agent not injected or busy.
+        }
     }
 
     private static byte[] StructToBytes<T>(T str) where T : struct
@@ -239,18 +265,71 @@ public sealed class AgentPipeClient
         int size = Marshal.SizeOf(str);
         byte[] arr = new byte[size];
         IntPtr ptr = Marshal.AllocHGlobal(size);
-        Marshal.StructureToPtr(str, ptr, true);
-        Marshal.Copy(ptr, arr, 0, size);
-        Marshal.FreeHGlobal(ptr);
+        try
+        {
+            Marshal.StructureToPtr(str, ptr, false);
+            Marshal.Copy(ptr, arr, 0, size);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+
         return arr;
     }
 }
 
 public static class VirtualKeyMap
 {
-    public static ushort GetVk(string keyName)
+    public static ushort GetVk(string? keyName)
     {
-        // Placeholder: in a real scenario, this would map "F1" -> 0x70
-        return 0;
+        string normalized = HotkeyText.Normalize(keyName);
+        if (string.IsNullOrEmpty(normalized) || normalized.Equals("None", StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        if (normalized.Length == 1)
+        {
+            char ch = normalized[0];
+            if (char.IsLetterOrDigit(ch))
+                return ch;
+        }
+
+        string upper = normalized.ToUpperInvariant();
+
+        if (upper.StartsWith("F", StringComparison.Ordinal)
+            && int.TryParse(upper[1..], out int functionKey)
+            && functionKey is >= 1 and <= 24)
+        {
+            return (ushort)(0x6F + functionKey);
+        }
+
+        if (upper.StartsWith("NUM", StringComparison.Ordinal)
+            && int.TryParse(upper[3..], out int numpadDigit)
+            && numpadDigit is >= 0 and <= 9)
+        {
+            return (ushort)(0x60 + numpadDigit);
+        }
+
+        return upper switch
+        {
+            "ENTER" => 0x0D,
+            "SPACE" => 0x20,
+            "ESC" => 0x1B,
+            "TAB" => 0x09,
+            "INSERT" => 0x2D,
+            "DELETE" => 0x2E,
+            "HOME" => 0x24,
+            "END" => 0x23,
+            "PGUP" => 0x21,
+            "PGDOWN" => 0x22,
+            "UP" => 0x26,
+            "DOWN" => 0x28,
+            "LEFT" => 0x25,
+            "RIGHT" => 0x27,
+            "OEMPLUS" => 0xBB,
+            "OEMMINUS" => 0xBD,
+            "OEM5" => 0xDC,
+            _ => 0,
+        };
     }
 }

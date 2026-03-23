@@ -10,3 +10,15 @@ E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Core\obj\Debug\ne
 E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Core\obj\Debug\net8.0\refint\PersonalRagnarokTool.Core.dll
 E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.pdb
 E:\RAGNAROK ONLINE\Personal Ragnarok Tool\PersonalRagnarokTool.Core\obj\Debug\net8.0\ref\PersonalRagnarokTool.Core.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\bin\Debug\net8.0\PersonalRagnarokTool.Core.deps.json
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\bin\Debug\net8.0\PersonalRagnarokTool.Core.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\bin\Debug\net8.0\PersonalRagnarokTool.Core.pdb
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.AssemblyInfoInputs.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.AssemblyInfo.cs
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.csproj.CoreCompileInputs.cache
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.sourcelink.json
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\refint\PersonalRagnarokTool.Core.dll
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\PersonalRagnarokTool.Core.pdb
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\783d8fcd9e42ddea\PersonalRagnarokTool.Core\obj\Debug\net8.0\ref\PersonalRagnarokTool.Core.dll

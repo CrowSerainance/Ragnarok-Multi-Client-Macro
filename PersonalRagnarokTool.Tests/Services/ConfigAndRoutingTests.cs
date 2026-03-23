@@ -17,12 +17,9 @@ public sealed class ConfigAndRoutingTests
             profile.Bindings.Add(new MacroBinding
             {
                 Name = "Primary",
-                TriggerHotkey = "f1",
-                InputKey = "1",
-                CellRadius = 8,
-                ClickCount = 3,
-                ClickDirection = ClickDirection.Right,
-                MacroSteps =
+                TriggerKey = "f1",
+                IntervalMs = 80,
+                Steps =
                 {
                     new MacroStep { Key = "f2", DelayMs = 90 },
                     new MacroStep { Key = "q", DelayMs = 140 },
@@ -36,117 +33,26 @@ public sealed class ConfigAndRoutingTests
             Assert.Single(loaded.ClientProfiles);
             Assert.Equal("Client 1", loaded.ClientProfiles[0].DisplayName);
             Assert.Single(loaded.ClientProfiles[0].Bindings);
-            Assert.Equal("F1", loaded.ClientProfiles[0].Bindings[0].TriggerHotkey);
-            Assert.Equal(8, loaded.ClientProfiles[0].Bindings[0].CellRadius);
-            Assert.Equal(3, loaded.ClientProfiles[0].Bindings[0].ClickCount);
-            Assert.Equal(ClickDirection.Right, loaded.ClientProfiles[0].Bindings[0].ClickDirection);
+            Assert.Equal("f1", loaded.ClientProfiles[0].Bindings[0].TriggerKey);
+            Assert.Equal(80, loaded.ClientProfiles[0].Bindings[0].IntervalMs);
             Assert.Collection(
-                loaded.ClientProfiles[0].Bindings[0].MacroSteps,
+                loaded.ClientProfiles[0].Bindings[0].Steps,
                 step =>
                 {
-                    Assert.Equal("F2", step.Key);
+                    Assert.Equal("f2", step.Key);
                     Assert.Equal(90, step.DelayMs);
                 },
                 step =>
                 {
-                    Assert.Equal("Q", step.Key);
+                    Assert.Equal("q", step.Key);
                     Assert.Equal(140, step.DelayMs);
                 });
         }
         finally
         {
             if (File.Exists(tempPath))
-            {
                 File.Delete(tempPath);
-            }
         }
-    }
-
-    [Fact]
-    public void BindingValidator_FindsDuplicateEnabledHotkeys()
-    {
-        AppConfig config = CreateConfig();
-        config.ClientProfiles[0].Bindings.Add(new MacroBinding { Name = "A", TriggerHotkey = "F1", InputKey = "1" });
-        config.ClientProfiles[1].Bindings.Add(new MacroBinding { Name = "B", TriggerHotkey = "f1", InputKey = "2" });
-        config.ClientProfiles[1].Bindings.Add(new MacroBinding { Name = "Disabled", TriggerHotkey = "F1", InputKey = "3", IsEnabled = false });
-
-        IReadOnlyList<string> duplicates = BindingValidator.GetDuplicateHotkeys(config);
-
-        Assert.Single(duplicates);
-        Assert.Equal("F1", duplicates[0]);
-    }
-
-    [Fact]
-    public void HotkeyRouter_ReturnsTheMatchingEnabledBinding()
-    {
-        AppConfig config = CreateConfig();
-        var binding = new MacroBinding
-        {
-            Name = "Heal",
-            TriggerHotkey = "F2",
-            InputKey = "2",
-            CellRadius = 5,
-        };
-        config.ClientProfiles[0].Bindings.Add(binding);
-        BindingValidator.NormalizeConfig(config);
-
-        var router = new HotkeyRouter();
-        RoutedBinding? routed = router.FindBinding(config, "f2");
-
-        Assert.NotNull(routed);
-        Assert.Equal(binding.Id, routed!.Binding.Id);
-        Assert.Equal(config.ClientProfiles[0].Id, routed.Profile.Id);
-    }
-
-    [Fact]
-    public void BindingValidator_NormalizesBindingFields()
-    {
-        var config = CreateConfig();
-        config.ClientProfiles[0].Bindings.Add(new MacroBinding
-        {
-            Name = "Cell Binding",
-            TriggerHotkey = "F4",
-            InputKey = "4",
-            CellRadius = 10,
-        });
-
-        BindingValidator.NormalizeConfig(config);
-
-        var binding = config.ClientProfiles[0].Bindings[0];
-        Assert.Equal("F4", binding.TriggerHotkey);
-        Assert.Equal(10, binding.CellRadius);
-        Assert.Equal(config.ClientProfiles[0].Id, binding.ClientProfileId);
-    }
-
-    [Fact]
-    public void BindingValidator_NormalizesMacroStepKeys()
-    {
-        var config = CreateConfig();
-        config.ClientProfiles[0].Bindings.Add(new MacroBinding
-        {
-            Name = "Buff Sequence",
-            TriggerHotkey = "f5",
-            InputKey = "spacebar",
-            ClickDirection = ClickDirection.Up,
-            MacroSteps =
-            {
-                new MacroStep { Key = "f7", DelayMs = 120 },
-                new MacroStep { Key = "num1", DelayMs = 60 },
-                new MacroStep { Key = "e", DelayMs = 30 },
-            },
-        });
-
-        BindingValidator.NormalizeConfig(config);
-
-        var binding = config.ClientProfiles[0].Bindings[0];
-        Assert.Equal("F5", binding.TriggerHotkey);
-        Assert.Equal("Space", binding.InputKey);
-        Assert.Equal(ClickDirection.Up, binding.ClickDirection);
-        Assert.Collection(
-            binding.MacroSteps,
-            step => Assert.Equal("F7", step.Key),
-            step => Assert.Equal("Num1", step.Key),
-            step => Assert.Equal("E", step.Key));
     }
 
     [Theory]
@@ -163,11 +69,50 @@ public sealed class ConfigAndRoutingTests
         Assert.Equal(expected, normalized);
     }
 
-    private static AppConfig CreateConfig()
+    [Theory]
+    [InlineData("F1", 0x70)]
+    [InlineData("spacebar", 0x20)]
+    [InlineData("num1", 0x61)]
+    [InlineData("+", 0xBB)]
+    [InlineData("None", 0x00)]
+    public void VirtualKeyMap_MapsExpectedKeys(string input, ushort expected)
     {
-        var config = new AppConfig();
-        config.ClientProfiles.Add(new ClientProfile { DisplayName = "Client 1" });
-        config.ClientProfiles.Add(new ClientProfile { DisplayName = "Client 2" });
-        return config;
+        ushort vk = VirtualKeyMap.GetVk(input);
+
+        Assert.Equal(expected, vk);
+    }
+
+    [Fact]
+    public void AgentPipeClient_BuildAutopotPayload_UsesBinaryLayoutExpectedByNativeAgent()
+    {
+        var autopot = new AutopotConfig
+        {
+            Enabled = true,
+            HpKey = "F1",
+            HpThreshold = 60,
+            SpKey = "F2",
+            SpThreshold = 35,
+            DelayMs = 75,
+        };
+        var ygg = new YggAutopotConfig
+        {
+            Enabled = true,
+            HpKey = "F3",
+            SpKey = "F3",
+            HpThreshold = 20,
+            SpThreshold = 25,
+        };
+
+        byte[] payload = AgentPipeClient.BuildAutopotPayload(autopot, ygg);
+
+        Assert.Equal(23, payload.Length);
+        Assert.Equal(1, payload[0]);
+        Assert.Equal((ushort)0x70, BitConverter.ToUInt16(payload, 1));
+        Assert.Equal(60, BitConverter.ToInt32(payload, 3));
+        Assert.Equal((ushort)0x71, BitConverter.ToUInt16(payload, 7));
+        Assert.Equal(35, BitConverter.ToInt32(payload, 9));
+        Assert.Equal((ushort)0x72, BitConverter.ToUInt16(payload, 13));
+        Assert.Equal(20, BitConverter.ToInt32(payload, 15));
+        Assert.Equal(75, BitConverter.ToInt32(payload, 19));
     }
 }

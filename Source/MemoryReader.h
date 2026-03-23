@@ -7,6 +7,7 @@ namespace prt {
 
 class MemoryReader {
 public:
+    MemoryReader();
     MemoryReader(HANDLE hProcess, uintptr_t baseAddress, uint32_t pid, HANDLE hDriver = INVALID_HANDLE_VALUE);
     ~MemoryReader();
 

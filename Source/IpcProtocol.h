@@ -19,6 +19,14 @@ static const uint32_t CMD_SYNC_AUTOPOT   = 0x10;
 static const uint32_t CMD_SYNC_AUTOBUFF  = 0x11;
 static const uint32_t CMD_SYNC_SPAMMER   = 0x12;
 static const uint32_t CMD_SYNC_RECOVERY  = 0x13;
+static const uint32_t CMD_SYNC_YGG_AUTOPOT = 0x14;
+static const uint32_t CMD_SYNC_SKILL_TIMER = 0x15;
+static const uint32_t CMD_SYNC_ATK_DEF = 0x16;
+static const uint32_t CMD_SYNC_MACRO_SONG = 0x17;
+static const uint32_t CMD_SYNC_MACRO_SWITCH = 0x18;
+static const uint32_t CMD_SYNC_AUTOBUFF_SKILLS = 0x19;
+static const uint32_t CMD_SYNC_AUTOBUFF_ITEMS = 0x1A;
+static const uint32_t CMD_SYNC_DEBUFF_RECOVERY = 0x1B;
 static const uint32_t CMD_RESULT         = 0xFF;
 
 #pragma pack(push, 1)
@@ -101,8 +109,57 @@ struct SyncRecoveryEntry {
 
 struct SyncRecoveryPayload {
     bool enabled;
+    bool autoStand;
+    uint16_t groupStatusKey;
+    uint16_t groupNewStatusKey;
     uint32_t count;
     // Followed by count * SyncRecoveryEntry
+};
+
+struct SyncSkillTimerEntry {
+    uint16_t key;
+    int delaySeconds;
+    bool enabled;
+};
+
+struct SyncSkillTimerPayload {
+    bool enabled;
+    SyncSkillTimerEntry timer1;
+    SyncSkillTimerEntry timer2;
+    SyncSkillTimerEntry timer3;
+};
+
+struct SyncAtkDefPayload {
+    bool enabled;
+    uint16_t spammerKey;
+    bool spammerWithClick;
+    int spammerDelay;
+    int switchDelay;
+    uint32_t atkCount;
+    uint32_t defCount;
+    // Followed by atkCount * uint16_t, then defCount * uint16_t
+};
+
+struct SyncMacroChainEntry {
+    uint16_t key;
+    int delayMs;
+    bool hasClick;
+};
+
+struct SyncMacroLaneHeader {
+    uint16_t triggerKey;
+    uint16_t daggerKey;
+    uint16_t instrumentKey;
+    int delayMs;
+    bool infinityLoop;
+    uint32_t entryCount;
+    // Followed by entryCount * SyncMacroChainEntry
+};
+
+struct SyncMacroPayload {
+    bool enabled;
+    uint32_t laneCount;
+    // Followed by laneCount lane headers + entries
 };
 #pragma pack(pop)
 

@@ -21,6 +21,12 @@ struct WRITE_MEM_REQ {
 };
 #pragma pack(pop)
 
+MemoryReader::MemoryReader()
+    : _hProcess(GetCurrentProcess()),
+      _baseAddress((uintptr_t)GetModuleHandle(NULL)),
+      _pid(GetCurrentProcessId()),
+      _hDriver(INVALID_HANDLE_VALUE) {}
+
 MemoryReader::MemoryReader(HANDLE hProcess, uintptr_t baseAddress, uint32_t pid, HANDLE hDriver)
     : _hProcess(hProcess), _baseAddress(baseAddress), _pid(pid), _hDriver(hDriver) {}
 

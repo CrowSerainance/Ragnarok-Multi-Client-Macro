@@ -491,8 +491,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (profile?.BoundWindow == null) return;
         int pid = profile.BoundWindow.ProcessId;
 
-        AgentPipeClient.SyncAutopot(pid, profile.Autopot);
-        AgentPipeClient.SyncYggAutopot(pid, profile.YggAutopot);
+        AgentPipeClient.SyncAutopot(pid, profile.Autopot, profile.YggAutopot);
         AgentPipeClient.SyncAutobuff(pid, profile.Autobuff);
         AgentPipeClient.SyncAutobuffSkills(pid, profile.AutobuffSkills);
         AgentPipeClient.SyncAutobuffItems(pid, profile.AutobuffItems);
@@ -988,12 +987,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // ═══════════════════════════════════════════════════════════
 
     private ClientWindowRef? FindMatchingAvailableWindow(ClientWindowRef? boundWindow) =>
-        boundWindow is null
-            ? null
-            : AvailableWindows.FirstOrDefault(w => w.WindowHandle == boundWindow.WindowHandle)
-              ?? AvailableWindows.FirstOrDefault(w => w.ProcessId == boundWindow.ProcessId
-                  && string.Equals(w.WindowTitle, boundWindow.WindowTitle, StringComparison.OrdinalIgnoreCase))
-              ?? AvailableWindows.FirstOrDefault(w => w.ProcessId == boundWindow.ProcessId);
+        ClientWindowMatcher.Match(boundWindow, AvailableWindows).ResolvedWindow;
 
     private void RefreshCommandStates()
     {

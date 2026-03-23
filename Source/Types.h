@@ -128,6 +128,16 @@ struct AutobuffConfig {
     std::vector<BuffConfig> buffs;
 };
 
+struct AutobuffSkillsConfig {
+    bool enabled = false;
+    std::vector<BuffConfig> buffs;
+};
+
+struct AutobuffItemsConfig {
+    bool enabled = false;
+    std::vector<BuffConfig> buffs;
+};
+
 struct SpammerKey {
     uint16_t key = 0;
     int intervalMs = 100;
@@ -150,6 +160,66 @@ struct StatusRecoveryConfig {
     std::vector<RecoveryConfig> recoveries;
 };
 
+struct DebuffRecoveryConfig {
+    bool enabled = false;
+    uint16_t groupStatusKey = 0;
+    uint16_t groupNewStatusKey = 0;
+    bool autoStand = false;
+    std::vector<RecoveryConfig> recoveries;
+};
+
+struct SkillTimerEntry {
+    uint16_t key = 0;
+    int delaySeconds = 10;
+    bool enabled = false;
+};
+
+struct SkillTimerConfig {
+    bool enabled = false;
+    SkillTimerEntry timer1;
+    SkillTimerEntry timer2;
+    SkillTimerEntry timer3;
+};
+
+struct AtkDefKeyEntry {
+    uint16_t key = 0;
+};
+
+struct AtkDefModeConfig {
+    bool enabled = false;
+    uint16_t spammerKey = 0;
+    bool spammerWithClick = false;
+    int spammerDelay = 10;
+    int switchDelay = 50;
+    std::vector<AtkDefKeyEntry> atkKeys;
+    std::vector<AtkDefKeyEntry> defKeys;
+};
+
+struct MacroChainEntry {
+    uint16_t key = 0;
+    int delayMs = 50;
+    bool hasClick = false;
+};
+
+struct MacroChainLane {
+    uint16_t triggerKey = 0;
+    uint16_t daggerKey = 0;
+    uint16_t instrumentKey = 0;
+    int delayMs = 50;
+    bool infinityLoop = false;
+    std::vector<MacroChainEntry> entries;
+};
+
+struct MacroSongConfig {
+    bool enabled = false;
+    std::vector<MacroChainLane> lanes;
+};
+
+struct MacroSwitchConfig {
+    bool enabled = false;
+    std::vector<MacroChainLane> lanes;
+};
+
 // ---- Client Profile ----
 
 struct ClientProfile {
@@ -163,8 +233,15 @@ struct ClientProfile {
     // 4R Features
     AutopotConfig autopot;
     AutobuffConfig autobuff;
+    AutobuffSkillsConfig autobuffSkills;
+    AutobuffItemsConfig autobuffItems;
     SpammerConfig spammer;
     StatusRecoveryConfig recovery;
+    DebuffRecoveryConfig debuffRecovery;
+    SkillTimerConfig skillTimers;
+    AtkDefModeConfig atkDefMode;
+    MacroSongConfig macroSongs;
+    MacroSwitchConfig macroSwitch;
 
     // Runtime
     std::string runtimeStatusLabel;
@@ -199,10 +276,10 @@ enum class AgentCommandId : uint32_t {
     CapturePreview = 0x03,
     Ping           = 0x04,
     GetGameState   = 0x05,
-    SyncAutopot    = 0x06,
-    SyncAutobuff   = 0x07,
-    SyncSpammer    = 0x08,
-    SyncRecovery   = 0x09,
+    SyncAutopot    = 0x10,
+    SyncAutobuff   = 0x11,
+    SyncSpammer    = 0x12,
+    SyncRecovery   = 0x13,
     Result         = 0xFF,
 };
 

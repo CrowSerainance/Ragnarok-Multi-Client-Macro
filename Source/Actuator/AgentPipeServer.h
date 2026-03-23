@@ -4,7 +4,7 @@
 #include <thread>
 #include <memory>
 #include <atomic>
-#include "../Core/Types.h"
+#include "../Types.h"
 #include "InputInjector.h"
 
 namespace prt {

@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include "../Core/Types.h"
-#include "../Core/MemoryReader.h"
+#include "../Types.h"
+#include "../MemoryReader.h"
 
 namespace prt {
 
