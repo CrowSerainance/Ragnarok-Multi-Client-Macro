@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Windows.Input;
 using System.Windows.Forms;
@@ -121,6 +121,11 @@ namespace _4RTools.Model
 
         private void useAutobuff(Key key)
         {
+            if (InputAutomationStopProtocol.ShouldYieldBuffStyleInput())
+            {
+                return;
+            }
+
             if((key != Key.None) && !IsAltDown())
             {
                 ClientSingleton.GetClient().input.SendKey((int)Enum.Parse(typeof(Keys), key.ToString()), true);

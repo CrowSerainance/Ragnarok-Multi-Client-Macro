@@ -1,4 +1,4 @@
-﻿using _4RTools.Utils;
+using _4RTools.Utils;
 using _4RTools.Utils.MuhBotCore;
 using Newtonsoft.Json;
 using System;
@@ -93,6 +93,11 @@ namespace _4RTools.Model
 
         private void useStatusRecovery(Key key)
         {
+            if (InputAutomationStopProtocol.ShouldYieldBuffStyleInput())
+            {
+                return;
+            }
+
             if ((key != Key.None) && !IsAltDown())
             {
                 ClientSingleton.GetClient().input.SendKey((int)Enum.Parse(typeof(Keys), key.ToString()), true);

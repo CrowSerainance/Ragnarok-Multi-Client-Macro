@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows.Input;
 using Newtonsoft.Json;
@@ -104,47 +104,73 @@ namespace _4RTools.Model
 
         private int MacroExecutionThread(Client roClient)
         {
+            bool anyMacroTriggerHeld = false;
             foreach (ChainConfig chainConfig in this.chainConfigs)
             {
                 if (chainConfig.trigger != Key.None && IsWpfKeyDown(chainConfig.trigger))
                 {
-                    Dictionary<string, MacroKey> macro = chainConfig.macroEntries;
-                    for (int i = 1; i <= macro.Count; i++)//Ensure to execute keys in Order
+                    anyMacroTriggerHeld = true;
+                    break;
+                }
+            }
+
+            if (anyMacroTriggerHeld)
+            {
+                InputAutomationStopProtocol.EnterExclusiveAutomation();
+            }
+
+            try
+            {
+                foreach (ChainConfig chainConfig in this.chainConfigs)
+                {
+                    if (chainConfig.trigger != Key.None && IsWpfKeyDown(chainConfig.trigger))
                     {
-                        MacroKey macroKey = macro["in" + i + "mac" + chainConfig.id];
-                        if (macroKey.key != Key.None)
+                        Dictionary<string, MacroKey> macro = chainConfig.macroEntries;
+                        for (int i = 1; i <= macro.Count; i++)//Ensure to execute keys in Order
                         {
-                            if(chainConfig.instrumentKey != Key.None)
+                            MacroKey macroKey = macro["in" + i + "mac" + chainConfig.id];
+                            if (macroKey.key != Key.None)
                             {
-                                //Press instrument key if exists.
-                                Keys instrumentKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.instrumentKey.ToString());
-                                roClient.input.SendKey((int)instrumentKey, true);
+                                if(chainConfig.instrumentKey != Key.None)
+                                {
+                                    //Press instrument key if exists.
+                                    Keys instrumentKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.instrumentKey.ToString());
+                                    roClient.input.SendKey((int)instrumentKey, true);
+                                }
+
+                                Keys thisk = (Keys)Enum.Parse(typeof(Keys), macroKey.key.ToString());
+                                Thread.Sleep(macroKey.delay);
+                                roClient.input.SendKey((int)thisk, true);
+
+                                if (macroKey.hasClick) {
+                                    Native.POINT p;
+                                    Native.GetCursorPos(out p);
+                                    IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
+                                    if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
+                                    roClient.input.SendClick(p.X, p.Y);
+                                }
+                                
+
+                                if(chainConfig.daggerKey != Key.None)
+                                {
+                                    //Press instrument key if exists.
+                                    Keys daggerKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.daggerKey.ToString());
+                                    roClient.input.SendKey((int)daggerKey, true);
+                                }
+
                             }
-
-                            Keys thisk = (Keys)Enum.Parse(typeof(Keys), macroKey.key.ToString());
-                            Thread.Sleep(macroKey.delay);
-                            roClient.input.SendKey((int)thisk, true);
-
-                            if (macroKey.hasClick) {
-                                Native.POINT p;
-                                Native.GetCursorPos(out p);
-                                IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
-                                if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
-                                roClient.input.SendClick(p.X, p.Y);
-                            }
-                            
-
-                            if(chainConfig.daggerKey != Key.None)
-                            {
-                                //Press instrument key if exists.
-                                Keys daggerKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.daggerKey.ToString());
-                                roClient.input.SendKey((int)daggerKey, true);
-                            }
-
                         }
                     }
                 }
             }
+            finally
+            {
+                if (anyMacroTriggerHeld)
+                {
+                    InputAutomationStopProtocol.LeaveExclusiveAutomation();
+                }
+            }
+
             Thread.Sleep(100);
             return 0;
         }

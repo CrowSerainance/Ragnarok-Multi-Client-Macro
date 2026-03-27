@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Newtonsoft.Json;
 using _4RTools.Utils;
 using System.Threading;
@@ -61,38 +61,46 @@ namespace _4RTools.Model
             Keys thisk = toKeys(keySpammer);
             if (this.keySpammer != Key.None && IsWpfKeyDown(this.keySpammer))
             {
-                foreach (Key key in atkKeys.Values)
+                InputAutomationStopProtocol.EnterExclusiveAutomation();
+                try
                 {
-                    roClient.input.SendKey((int)toKeys(key), true); //Equip ATK Items
-                    Thread.Sleep(this.switchDelay);
-                }
-
-                if (this.keySpammerWithClick)
-                {
-                    while (IsWpfKeyDown(keySpammer))
+                    foreach (Key key in atkKeys.Values)
                     {
-                        roClient.input.SendKey((int)thisk, true);
-                        Native.POINT p;
-                        Native.GetCursorPos(out p);
-                        IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
-                        if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
-                        roClient.input.SendClick(p.X, p.Y);
-                        Thread.Sleep(this.ahkDelay);
+                        roClient.input.SendKey((int)toKeys(key), true); //Equip ATK Items
+                        Thread.Sleep(this.switchDelay);
+                    }
+
+                    if (this.keySpammerWithClick)
+                    {
+                        while (IsWpfKeyDown(keySpammer))
+                        {
+                            roClient.input.SendKey((int)thisk, true);
+                            Native.POINT p;
+                            Native.GetCursorPos(out p);
+                            IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
+                            if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
+                            roClient.input.SendClick(p.X, p.Y);
+                            Thread.Sleep(this.ahkDelay);
+                        }
+                    }
+                    else
+                    {
+                        while (IsWpfKeyDown(keySpammer))
+                        {
+                            roClient.input.SendKey((int)thisk, true);
+                            Thread.Sleep(this.ahkDelay);
+                        }
+                    }
+
+                    foreach (Key key in defKeys.Values)
+                    {
+                        roClient.input.SendKey((int)toKeys(key), true); //Equip DEF Items
+                        Thread.Sleep(this.switchDelay);
                     }
                 }
-                else
+                finally
                 {
-                    while (IsWpfKeyDown(keySpammer))
-                    {
-                        roClient.input.SendKey((int)thisk, true);
-                        Thread.Sleep(this.ahkDelay);
-                    }
-                }
-
-                foreach (Key key in defKeys.Values)
-                {
-                    roClient.input.SendKey((int)toKeys(key), true); //Equip DEF Items
-                    Thread.Sleep(this.switchDelay);
+                    InputAutomationStopProtocol.LeaveExclusiveAutomation();
                 }
             }
             return 0;

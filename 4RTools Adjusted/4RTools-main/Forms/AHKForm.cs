@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using _4RTools.Model;
 using _4RTools.Utils;
@@ -188,13 +189,7 @@ namespace _4RTools.Forms
                 if (result == DialogResult.OK)
                 {
                     AhkSlotConfig slot = ahk.Slots[slotIndex];
-                    slot.TriggerKey = dialog.CapturedBinding.TriggerKey;
-                    slot.Ctrl = dialog.CapturedBinding.Ctrl;
-                    slot.Alt = dialog.CapturedBinding.Alt;
-                    slot.Shift = dialog.CapturedBinding.Shift;
-                    slot.Win = dialog.CapturedBinding.Win;
-                    slot.Enabled = slot.ParseTriggerKey() != FormsKeys.None;
-
+                    dialog.ApplyToSlot(slot);
                     PersistAhkConfiguration();
                     UpdateUI();
                 }
@@ -217,12 +212,16 @@ namespace _4RTools.Forms
             ahk.EnsureSlotsConfigured();
 
             AhkSlotConfig slot = ahk.Slots[slotIndex];
+            slot.TriggerBindings = new List<AhkTriggerBinding>();
+            slot.SkillKeys = new List<string>();
             slot.TriggerKey = FormsKeys.None.ToString();
+            slot.SkillKey = FormsKeys.None.ToString();
             slot.Ctrl = false;
             slot.Alt = false;
             slot.Shift = false;
             slot.Win = false;
             slot.Enabled = false;
+            slot.EnsureSlotModelConsistent();
 
             PersistAhkConfiguration();
             UpdateUI();
@@ -254,7 +253,10 @@ namespace _4RTools.Forms
             ahk.EnsureSlotsConfigured();
 
             AhkSlotConfig slot = ahk.Slots[slotIndex];
-            bool shouldEnable = ((CheckBox)sender).Checked && slot.ParseTriggerKey() != FormsKeys.None;
+            slot.EnsureSlotModelConsistent();
+            bool shouldEnable = ((CheckBox)sender).Checked &&
+                                slot.ParseTriggerKey() != FormsKeys.None &&
+                                slot.GetResolvedSkillKeyCodes().Count > 0;
             slot.Enabled = shouldEnable;
 
             PersistAhkConfiguration();
@@ -319,17 +321,56 @@ namespace _4RTools.Forms
 
         private static string FormatBinding(AhkSlotConfig slot)
         {
-            FormsKeys key = slot.ParseTriggerKey();
-            if (key == FormsKeys.None)
+            slot.EnsureSlotModelConsistent();
+            if (slot.ParseTriggerKey() == FormsKeys.None || slot.GetResolvedSkillKeyCodes().Count == 0)
             {
                 return "Not bound";
             }
 
+            AhkTriggerBinding trig = new AhkTriggerBinding
+            {
+                TriggerKey = slot.TriggerKey,
+                Ctrl = slot.Ctrl,
+                Alt = slot.Alt,
+                Shift = slot.Shift,
+                Win = slot.Win
+            };
+
+            IEnumerable<string> skillSources = slot.SkillKeys != null && slot.SkillKeys.Count > 0
+                ? slot.SkillKeys
+                : new[] { slot.SkillKey };
+
+            List<string> skillLabels = new List<string>();
+            foreach (string s in skillSources)
+            {
+                FormsKeys k = AhkSlotConfig.ParseKeyStringStatic(s);
+                if (k != FormsKeys.None)
+                {
+                    skillLabels.Add(GetFriendlyKeyName(k));
+                }
+            }
+
+            if (skillLabels.Count == 0)
+            {
+                return "Not bound";
+            }
+
+            return $"{FormatOneTrigger(trig)}  →  {string.Join(" · ", skillLabels)}";
+        }
+
+        private static string FormatOneTrigger(AhkTriggerBinding binding)
+        {
+            FormsKeys key = binding.ParseKey();
+            if (key == FormsKeys.None)
+            {
+                return "?";
+            }
+
             List<string> parts = new List<string>(5);
-            if (slot.Ctrl) parts.Add("Ctrl");
-            if (slot.Alt) parts.Add("Alt");
-            if (slot.Shift) parts.Add("Shift");
-            if (slot.Win) parts.Add("Win");
+            if (binding.Ctrl) parts.Add("Ctrl");
+            if (binding.Alt) parts.Add("Alt");
+            if (binding.Shift) parts.Add("Shift");
+            if (binding.Win) parts.Add("Win");
             parts.Add(GetFriendlyKeyName(key));
 
             return string.Join(" + ", parts);
@@ -345,6 +386,28 @@ namespace _4RTools.Forms
                     return "PageDown";
                 case FormsKeys.Return:
                     return "Enter";
+                case FormsKeys.OemMinus:
+                    return "-";
+                case FormsKeys.Oemplus:
+                    return "=";
+                case FormsKeys.OemOpenBrackets:
+                    return "[";
+                case FormsKeys.OemCloseBrackets:
+                    return "]";
+                case FormsKeys.OemPipe:
+                    return "\\";
+                case FormsKeys.OemSemicolon:
+                    return ";";
+                case FormsKeys.Oemtilde:
+                    return "`";
+                case FormsKeys.OemQuotes:
+                    return "'";
+                case FormsKeys.Oemcomma:
+                    return ",";
+                case FormsKeys.OemPeriod:
+                    return ".";
+                case FormsKeys.OemQuestion:
+                    return "/";
             }
 
             if (key >= FormsKeys.D0 && key <= FormsKeys.D9)
@@ -402,18 +465,39 @@ namespace _4RTools.Forms
 
         private sealed class BindingCaptureDialog : Form
         {
-            private readonly Label lblPrompt;
-            public AhkSlotConfig CapturedBinding { get; private set; }
-
-            public BindingCaptureDialog(AhkSlotConfig currentBinding)
+            private enum ListenMode
             {
-                this.CapturedBinding = new AhkSlotConfig
+                None,
+                AddSkill,
+                SetTrigger
+            }
+
+            private readonly TextBox txtTrigger;
+            private readonly ListBox listSkills;
+            private readonly Label lblStatus;
+            private readonly Button btnOk;
+            private AhkTriggerBinding workingTrigger;
+            private readonly List<string> workingSkills;
+            private ListenMode listenMode = ListenMode.None;
+
+            public BindingCaptureDialog(AhkSlotConfig current)
+            {
+                current.EnsureSlotModelConsistent();
+                this.workingSkills = current.SkillKeys != null
+                    ? new List<string>(current.SkillKeys)
+                    : new List<string>();
+                if (this.workingSkills.Count == 0 && current.ParseSkillKey() != FormsKeys.None)
                 {
-                    TriggerKey = currentBinding.TriggerKey,
-                    Ctrl = currentBinding.Ctrl,
-                    Alt = currentBinding.Alt,
-                    Shift = currentBinding.Shift,
-                    Win = currentBinding.Win
+                    this.workingSkills.Add(current.SkillKey);
+                }
+
+                this.workingTrigger = new AhkTriggerBinding
+                {
+                    TriggerKey = current.TriggerKey,
+                    Ctrl = current.Ctrl,
+                    Alt = current.Alt,
+                    Shift = current.Shift,
+                    Win = current.Win
                 };
 
                 this.Text = "Bind Key";
@@ -421,22 +505,75 @@ namespace _4RTools.Forms
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(360, 110);
+                this.ClientSize = new Size(400, 340);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
-                this.lblPrompt = new Label
+                Label lblTrigger = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 12),
+                    Text = "Trigger shortcut (hold to activate):"
+                };
+
+                this.txtTrigger = new TextBox
+                {
+                    Location = new Point(12, 32),
+                    Size = new Size(260, 22),
+                    ReadOnly = true,
+                    TabStop = false
+                };
+
+                Button btnSetTrigger = new Button
+                {
+                    Location = new Point(280, 30),
+                    Size = new Size(100, 24),
+                    Text = "Set trigger..."
+                };
+                btnSetTrigger.Click += (_, __) => this.BeginListen(ListenMode.SetTrigger);
+
+                Label lblSkills = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 64),
+                    Text = "Skill keys (sent to game, cycled each press):"
+                };
+
+                this.listSkills = new ListBox
+                {
+                    Location = new Point(12, 84),
+                    Size = new Size(368, 120),
+                    IntegralHeight = false
+                };
+
+                Button btnAddSkill = new Button
+                {
+                    Location = new Point(12, 210),
+                    Size = new Size(120, 24),
+                    Text = "Add skill..."
+                };
+                btnAddSkill.Click += (_, __) => this.BeginListen(ListenMode.AddSkill);
+
+                Button btnRemove = new Button
+                {
+                    Location = new Point(140, 210),
+                    Size = new Size(80, 24),
+                    Text = "Remove"
+                };
+                btnRemove.Click += this.RemoveSelectedSkill;
+
+                this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 12),
-                    Size = new Size(336, 42),
-                    Text = "Press the shortcut to bind.\r\nUse Ctrl, Alt, and Shift with any key. Esc cancels."
+                    Location = new Point(12, 240),
+                    Size = new Size(368, 36),
+                    Text = "Set one trigger, then add skill keys (A–Z, 0–9, -, =, …). Esc cancels capture or closes."
                 };
 
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(108, 70),
+                    Location = new Point(12, 300),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -444,16 +581,111 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(188, 70),
+                    Location = new Point(230, 300),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
-                this.Controls.Add(this.lblPrompt);
+                this.btnOk = new Button
+                {
+                    Location = new Point(310, 300),
+                    Size = new Size(70, 24),
+                    Text = "OK"
+                };
+                this.btnOk.Click += this.OnOkClick;
+
+                this.Controls.Add(lblTrigger);
+                this.Controls.Add(this.txtTrigger);
+                this.Controls.Add(btnSetTrigger);
+                this.Controls.Add(lblSkills);
+                this.Controls.Add(this.listSkills);
+                this.Controls.Add(btnAddSkill);
+                this.Controls.Add(btnRemove);
+                this.Controls.Add(this.lblStatus);
                 this.Controls.Add(btnClear);
                 this.Controls.Add(btnCancel);
-                this.AcceptButton = null;
+                this.Controls.Add(this.btnOk);
+                this.AcceptButton = this.btnOk;
                 this.CancelButton = btnCancel;
+
+                this.RefreshDisplays();
+            }
+
+            public void ApplyToSlot(AhkSlotConfig slot)
+            {
+                slot.SkillKeys = this.workingSkills.ToList();
+                slot.TriggerKey = this.workingTrigger.TriggerKey;
+                slot.Ctrl = this.workingTrigger.Ctrl;
+                slot.Alt = this.workingTrigger.Alt;
+                slot.Shift = this.workingTrigger.Shift;
+                slot.Win = this.workingTrigger.Win;
+                slot.TriggerBindings = new List<AhkTriggerBinding>
+                {
+                    new AhkTriggerBinding
+                    {
+                        TriggerKey = this.workingTrigger.TriggerKey,
+                        Ctrl = this.workingTrigger.Ctrl,
+                        Alt = this.workingTrigger.Alt,
+                        Shift = this.workingTrigger.Shift,
+                        Win = this.workingTrigger.Win
+                    }
+                };
+                slot.EnsureSlotModelConsistent();
+                slot.Enabled = slot.ParseTriggerKey() != FormsKeys.None &&
+                               slot.GetResolvedSkillKeyCodes().Count > 0;
+            }
+
+            private void BeginListen(ListenMode mode)
+            {
+                this.listenMode = mode;
+                this.lblStatus.Text = mode == ListenMode.AddSkill
+                    ? "Press the key to add as a skill (main key only; Esc cancels)."
+                    : "Press the trigger shortcut (Ctrl/Alt/Shift/Win allowed). Esc cancels capture.";
+            }
+
+            private void RemoveSelectedSkill(object sender, EventArgs e)
+            {
+                int i = this.listSkills.SelectedIndex;
+                if (i >= 0 && i < this.workingSkills.Count)
+                {
+                    this.workingSkills.RemoveAt(i);
+                    this.RefreshDisplays();
+                }
+            }
+
+            private void RefreshDisplays()
+            {
+                FormsKeys tk = this.workingTrigger.ParseKey();
+                this.txtTrigger.Text = tk == FormsKeys.None ? "(not set)" : FormatOneTrigger(this.workingTrigger);
+
+                this.listSkills.Items.Clear();
+                foreach (string s in this.workingSkills)
+                {
+                    FormsKeys k = AhkSlotConfig.ParseKeyStringStatic(s);
+                    this.listSkills.Items.Add(k == FormsKeys.None ? s : GetFriendlyKeyName(k));
+                }
+
+                this.listenMode = ListenMode.None;
+                this.lblStatus.Text =
+                    "Set one trigger, then add skill keys (A–Z, 0–9, -, =, …). Esc cancels capture or closes.";
+            }
+
+            private void OnOkClick(object sender, EventArgs e)
+            {
+                if (this.workingTrigger.ParseKey() == FormsKeys.None ||
+                    !this.workingSkills.Any(s => AhkSlotConfig.ParseKeyStringStatic(s) != FormsKeys.None))
+                {
+                    MessageBox.Show(
+                        this,
+                        "Set a trigger shortcut and at least one valid skill key.",
+                        "Bind Key",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                this.DialogResult = DialogResult.OK;
+                this.Close();
             }
 
             protected override void OnKeyDown(KeyEventArgs e)
@@ -463,8 +695,21 @@ namespace _4RTools.Forms
                 FormsKeys keyCode = e.KeyCode & FormsKeys.KeyCode;
                 if (keyCode == FormsKeys.Escape)
                 {
+                    if (this.listenMode != ListenMode.None)
+                    {
+                        this.listenMode = ListenMode.None;
+                        this.RefreshDisplays();
+                        e.SuppressKeyPress = true;
+                        return;
+                    }
+
                     this.DialogResult = DialogResult.Cancel;
                     this.Close();
+                    return;
+                }
+
+                if (this.listenMode == ListenMode.None)
+                {
                     return;
                 }
 
@@ -474,20 +719,27 @@ namespace _4RTools.Forms
                     return;
                 }
 
-                this.CapturedBinding = new AhkSlotConfig
+                if (this.listenMode == ListenMode.AddSkill)
+                {
+                    this.workingSkills.Add(keyCode.ToString());
+                    this.listenMode = ListenMode.None;
+                    this.RefreshDisplays();
+                    e.SuppressKeyPress = true;
+                    return;
+                }
+
+                this.workingTrigger = new AhkTriggerBinding
                 {
                     TriggerKey = keyCode.ToString(),
                     Ctrl = e.Control,
                     Alt = e.Alt,
                     Shift = e.Shift,
-                    Win = IsWinCurrentlyPressed(),
-                    ClickActive = true,
-                    Enabled = true
+                    Win = IsWinCurrentlyPressed()
                 };
 
-                this.DialogResult = DialogResult.OK;
+                this.listenMode = ListenMode.None;
+                this.RefreshDisplays();
                 e.SuppressKeyPress = true;
-                this.Close();
             }
         }
     }

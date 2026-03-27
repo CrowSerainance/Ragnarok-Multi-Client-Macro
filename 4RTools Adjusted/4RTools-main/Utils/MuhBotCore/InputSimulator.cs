@@ -174,7 +174,6 @@ public class InputSimulator
     }
 
     /// <summary>
-    /// <summary>
     /// Background left click using client-area coordinates.
     /// Sends direct virtual clicks to the game window's message queue via PostMessage.
     /// Does not steal OS focus or move the physical hardware mouse.
@@ -186,6 +185,20 @@ public class InputSimulator
         Thread.Sleep(_rng.Next(8, 18));
         Native.PostMessage(WindowHandle, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
         Thread.Sleep(GaussianDelay(55, 15, 25, 100));
+        Native.PostMessage(WindowHandle, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
+    }
+
+    /// <summary>
+    /// Fast background left click for high-speed skill spamming.
+    /// Uses minimal random delays (2-8ms) instead of the default Gaussian delay.
+    /// </summary>
+    public void PostClick(int x, int y)
+    {
+        IntPtr lParam = (IntPtr)((y << 16) | (x & 0xFFFF));
+        Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
+        Thread.Sleep(_rng.Next(2, 5));
+        Native.PostMessage(WindowHandle, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
+        Thread.Sleep(_rng.Next(4, 10));
         Native.PostMessage(WindowHandle, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
     }
 
@@ -299,6 +312,25 @@ public class InputSimulator
         ClickAt(screenX, screenY);
     }
 
+    /// <summary>
+    /// Fast click with mouse flick for high-speed skill spamming.
+    /// </summary>
+    public void PostClickWithFlick(int screenX, int screenY)
+    {
+        if (_mousePosXOffset != 0 && _mousePosYOffset != 0)
+        {
+            SetMousePosition(screenX - 1, screenY - 1);
+            Thread.Sleep(_rng.Next(2, 5));
+        }
+        else
+        {
+            IntPtr flickParam = (IntPtr)(((screenY - 1) << 16) | ((screenX - 1) & 0xFFFF));
+            Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
+            Thread.Sleep(_rng.Next(2, 5));
+        }
+        PostClick(screenX, screenY);
+    }
+
     public void ClickEngageTarget(int screenX, int screenY)
     {
         var points = new (int x, int y)[]
@@ -379,12 +411,12 @@ public class InputSimulator
         return 0xC0000001 | (scanCode << 16);
     }
 
-    private void PostKeyDown(int vkCode)
+    public void PostKeyDown(int vkCode)
     {
         Native.PostMessage(WindowHandle, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
     }
 
-    private void PostKeyUp(int vkCode)
+    public void PostKeyUp(int vkCode)
     {
         Native.PostMessage(WindowHandle, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
     }

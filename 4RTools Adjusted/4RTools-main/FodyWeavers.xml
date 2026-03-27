@@ -1,4 +1,4 @@
 <Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
-  <!-- Preserialized .resources load System.Resources.Extensions before Costura can satisfy AssemblyResolve; keep it on disk next to the exe -->
-  <Costura ExcludeAssemblies="System.Resources.Extensions" />
+  <!-- Preserialized .resources + System.Resources.Extensions pull in System.Memory early; keep those assemblies on disk (not embedded). -->
+  <Costura ExcludeAssemblies="System.Resources.Extensions|System.Memory|System.Buffers|System.Numerics.Vectors" />
 </Weavers>
