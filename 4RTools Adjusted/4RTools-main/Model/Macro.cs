@@ -34,6 +34,9 @@ namespace _4RTools.Model
         public bool infinityLoop { get; set; } = false;
         public bool infinityLoopOn { get; set; } = false;
 
+        [JsonIgnore]
+        public int currentStep { get; set; } = 0;
+
         public ChainConfig() { }
 
         public ChainConfig(int id)
@@ -86,6 +89,12 @@ namespace _4RTools.Model
         private _4RThread thread;
         public List<ChainConfig> chainConfigs { get; set; } = new List<ChainConfig>();
 
+        /// <summary>
+        /// Tracks which trigger keys are currently held so the chain fires once per press
+        /// (rising-edge detection) instead of repeating every poll cycle.
+        /// </summary>
+        private readonly HashSet<Key> _triggersDown = new HashSet<Key>();
+
         public Macro(string macroname, int macroLanes)
         {
             this.actionName = macroname;
@@ -131,10 +140,25 @@ namespace _4RTools.Model
                     continue;
                 }
 
-                if (IsWpfKeyDown(chainConfig.trigger))
+                bool isDown = IsWpfKeyDown(chainConfig.trigger);
+
+                if (isDown && !_triggersDown.Contains(chainConfig.trigger))
                 {
+                    // Rising edge: key just pressed — fire the chain once
+                    _triggersDown.Add(chainConfig.trigger);
                     anyTriggered = true;
                     ExecuteMacroChain(roClient, chainConfig);
+                }
+                else if (isDown && _triggersDown.Contains(chainConfig.trigger) && chainConfig.infinityLoop)
+                {
+                    // Key still held and infinity loop enabled — repeat the chain
+                    anyTriggered = true;
+                    ExecuteMacroChain(roClient, chainConfig);
+                }
+                else if (!isDown)
+                {
+                    // Key released — reset so next press fires again
+                    _triggersDown.Remove(chainConfig.trigger);
                 }
             }
 
@@ -148,16 +172,26 @@ namespace _4RTools.Model
 
         private void ExecuteMacroChain(Client roClient, ChainConfig chainConfig)
         {
+            if (InputAutomationStopProtocol.ShouldYieldBuffStyleInput())
+            {
+                return;
+            }
+
             InputAutomationStopProtocol.EnterExclusiveAutomation();
             try
             {
-                foreach (MacroKey macroKey in GetOrderedMacroEntries(chainConfig))
-                {
-                    if (macroKey == null || macroKey.key == Key.None)
-                    {
-                        continue;
-                    }
+                var keys = GetOrderedMacroEntries(chainConfig).ToList();
+                if (keys.Count == 0) return;
 
+                if (chainConfig.currentStep >= keys.Count)
+                {
+                    chainConfig.currentStep = 0;
+                }
+
+                MacroKey macroKey = keys[chainConfig.currentStep];
+                
+                if (macroKey != null && macroKey.key != Key.None)
+                {
                     if (chainConfig.instrumentKey != Key.None)
                     {
                         Keys instrumentKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.instrumentKey.ToString());
@@ -183,6 +217,8 @@ namespace _4RTools.Model
                         roClient.input.SendKey((int)daggerKey, true);
                     }
                 }
+
+                chainConfig.currentStep++;
             }
             finally
             {
@@ -234,6 +270,7 @@ namespace _4RTools.Model
         public void Stop()
         {
             _4RThread.Stop(this.thread);
+            _triggersDown.Clear();
         }
     }
 }

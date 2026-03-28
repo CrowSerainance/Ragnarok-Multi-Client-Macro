@@ -76,6 +76,16 @@ namespace _4RTools.Forms
 
         private bool toggleStatus()
         {
+            if (ProfileSingleton.GetCurrent().AHK.IsTriggerClaimedByActiveSlot(
+                lastKey,
+                KeyboardHook.Control,
+                KeyboardHook.Alt,
+                KeyboardHook.Shift,
+                KeyboardHook.Win))
+            {
+                return true;
+            }
+
             bool isOn = this.btnStatusToggle.Text == "ON";
             if (isOn)
             {

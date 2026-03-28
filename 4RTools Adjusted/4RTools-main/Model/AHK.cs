@@ -54,6 +54,17 @@ namespace _4RTools.Model
         public bool Shift { get; set; }
 
         public FormsKeys ParseKey() => AhkSlotConfig.ParseKeyStringStatic(this.Key);
+
+        public string BuildSignature()
+        {
+            FormsKeys keyCode = this.ParseKey();
+            if (keyCode == FormsKeys.None)
+            {
+                return string.Empty;
+            }
+
+            return AhkSlotConfig.BuildSkillBindingSignature(keyCode, this.Ctrl, this.Alt, this.Shift);
+        }
     }
 
     public class AhkSlotConfig
@@ -81,14 +92,15 @@ namespace _4RTools.Model
 
         public bool Enabled { get; set; }
 
-        /// <summary>Pause between hotkeys in a chain (after each key ± click, before the next key). Not applied after the last key (ms; default 60, range 20-150).</summary>
+        /// <summary>Pause between hotkeys in a chain (after each key ± click, before the next key). Not applied after the last key (ms; default 60, range 20–350).</summary>
         public int InterSkillDelayMs { get; set; } = 60;
 
         /// <summary>Click at cursor after each skill key to confirm targeting. Default on.</summary>
         public bool ClickActive { get; set; } = true;
 
-        /// <summary>If true, bind-slot sequence uses SendInput (foreground) instead of PostMessage to the game HWND.</summary>
-        public bool UseSendInput { get; set; }
+        /// <summary>Cycles through skill keys one-per-press so the game's aftercast delay is respected.</summary>
+        [JsonIgnore]
+        public int currentStep { get; set; } = 0;
 
         [JsonIgnore]
         public bool HasBinding =>
@@ -223,6 +235,7 @@ namespace _4RTools.Model
             // Keep SkillKeys in sync from SkillBindings for backward compat.
             if (this.SkillBindings.Count > 0)
             {
+                this.SkillBindings = DeduplicateSkillBindings(this.SkillBindings);
                 this.SkillKeys = this.SkillBindings
                     .Where(b => b.ParseKey() != FormsKeys.None)
                     .Select(b => b.Key)
@@ -267,9 +280,7 @@ namespace _4RTools.Model
         {
             if (this.SkillBindings != null && this.SkillBindings.Count > 0)
             {
-                return this.SkillBindings
-                    .Where(b => b.ParseKey() != FormsKeys.None)
-                    .ToList();
+                return DeduplicateSkillBindings(this.SkillBindings);
             }
 
             // Fallback to plain SkillKeys (no modifiers).
@@ -295,7 +306,7 @@ namespace _4RTools.Model
                 }
             }
 
-            return result;
+            return DeduplicateSkillBindings(result);
         }
 
         /// <summary>Convenience: just the key codes (no modifier info). Used by UI validation.</summary>
@@ -389,6 +400,67 @@ namespace _4RTools.Model
                     return trimmed;
             }
         }
+
+        internal static string BuildSkillBindingSignature(AhkSkillBinding binding)
+        {
+            if (binding == null)
+            {
+                return string.Empty;
+            }
+
+            return BuildSkillBindingSignature(binding.ParseKey(), binding.Ctrl, binding.Alt, binding.Shift);
+        }
+
+        internal static string BuildSkillBindingSignature(FormsKeys keyCode, bool ctrl, bool alt, bool shift)
+        {
+            if (keyCode == FormsKeys.None)
+            {
+                return string.Empty;
+            }
+
+            return $"{(int)keyCode}|{ctrl}|{alt}|{shift}";
+        }
+
+        private static List<AhkSkillBinding> DeduplicateSkillBindings(IEnumerable<AhkSkillBinding> bindings)
+        {
+            List<AhkSkillBinding> result = new List<AhkSkillBinding>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+
+            if (bindings == null)
+            {
+                return result;
+            }
+
+            foreach (AhkSkillBinding binding in bindings)
+            {
+                if (binding == null)
+                {
+                    continue;
+                }
+
+                FormsKeys keyCode = binding.ParseKey();
+                if (keyCode == FormsKeys.None)
+                {
+                    continue;
+                }
+
+                string signature = BuildSkillBindingSignature(keyCode, binding.Ctrl, binding.Alt, binding.Shift);
+                if (!seen.Add(signature))
+                {
+                    continue;
+                }
+
+                result.Add(new AhkSkillBinding
+                {
+                    Key = keyCode.ToString(),
+                    Ctrl = binding.Ctrl,
+                    Alt = binding.Alt,
+                    Shift = binding.Shift
+                });
+            }
+
+            return result;
+        }
     }
 
     public class AHK : Action
@@ -400,15 +472,7 @@ namespace _4RTools.Model
         public const int InterSkillDelayMinMs = 20;
 
         /// <summary>Maximum pause between keys in bind UI and chain execution (ms).</summary>
-        public const int InterSkillDelayMaxMs = 150;
-
-        /// <summary>Hold between WM_KEYDOWN and WM_KEYUP for each hotkey tap in bind-slot sequence (ms).</summary>
-        public const int MacroSequenceIntraKeyHoldMs = 8;
-
-        /// <summary>Pause between pressing a skill hotbar key and clicking to confirm it (ms).
-        /// Must be long enough for RO to enter targeting mode before the click arrives.
-        /// MuhBot uses 30ms; values below 20ms may cause the click to arrive before the skill activates.</summary>
-        public const int ClickAfterKeyDelayMs = 30;
+        public const int InterSkillDelayMaxMs = 500;
 
         private _4RThread thread;
 
@@ -428,6 +492,17 @@ namespace _4RTools.Model
         public Dictionary<string, KeyConfig> AhkEntries { get; set; } = new Dictionary<string, KeyConfig>();
         public List<AhkSlotConfig> Slots { get; set; } = CreateDefaultSlots();
 
+        /// <summary>Classic Skill Spammer modes (same names as stock 4RTools).</summary>
+        public const string COMPATIBILITY = "ahkCompatibility";
+        public const string SPEED_BOOST = "ahkSpeedBoost";
+
+        /// <summary>Legacy delay field (stock profiles); per-slot chains use <see cref="AhkSlotConfig.InterSkillDelayMs"/>.</summary>
+        public int AhkDelay { get; set; } = 10;
+
+        public bool mouseFlick { get; set; }
+        public bool noShift { get; set; }
+        public string ahkMode { get; set; } = COMPATIBILITY;
+
         public AHK()
         {
             EnsureSlotsConfigured();
@@ -436,6 +511,11 @@ namespace _4RTools.Model
         [OnDeserialized]
         internal void OnDeserialized(StreamingContext context)
         {
+            if (string.IsNullOrWhiteSpace(this.ahkMode))
+            {
+                this.ahkMode = COMPATIBILITY;
+            }
+
             EnsureSlotsConfigured();
         }
 
@@ -567,6 +647,7 @@ namespace _4RTools.Model
             slot.InterSkillDelayMs = Math.Max(
                 InterSkillDelayMinMs,
                 Math.Min(slot.InterSkillDelayMs, InterSkillDelayMaxMs));
+
             this.Slots[index] = slot;
         }
 
@@ -655,6 +736,12 @@ namespace _4RTools.Model
 
             for (int i = 0; i < this.Slots.Count; i++)
             {
+                // Stock 4RTools AHK ignores skill spam while Alt is held (UI / keybind safety).
+                if (IsKeyDown(FormsKeys.LMenu) || IsKeyDown(FormsKeys.RMenu))
+                {
+                    continue;
+                }
+
                 AhkSlotConfig slot = this.Slots[i];
                 if (slot == null)
                 {
@@ -689,10 +776,9 @@ namespace _4RTools.Model
 
                 if (isPressed && !this._slotTriggerDown.Contains(i))
                 {
-                    this._slotTriggerDown.Add(i);
-
                     if (Interlocked.CompareExchange(ref this._slotBusy[i], 1, 0) == 0)
                     {
+                        this._slotTriggerDown.Add(i);
                         int idx = i;
                         AhkSlotConfig capturedSlot = slot;
                         Client capturedClient = roClient;
@@ -727,7 +813,11 @@ namespace _4RTools.Model
         }
 
         /// <summary>
-        /// One trigger press → entire hotkey list top to bottom. Skips unmapped keys. Pauses between keys per <see cref="AhkSlotConfig.InterSkillDelayMs"/>.
+        /// One trigger press → fire the NEXT single key in the cycle (step-by-step).
+        /// Advances the step index so the next press fires the following key.
+        /// This respects RO's aftercast delay / animation lock — the game can only
+        /// process one skill action per human key-press window anyway, so blasting
+        /// the entire list in 60 ms gaps just wastes every key after the first.
         /// </summary>
         private void FireRegisteredKeyChain(Client roClient, AhkSlotConfig slot)
         {
@@ -743,104 +833,89 @@ namespace _4RTools.Model
                 return;
             }
 
-            List<AhkSkillBinding> keysCopy = resolved
-                .Select(b => new AhkSkillBinding
-                {
-                    Key = b.Key,
-                    Ctrl = b.Ctrl,
-                    Alt = b.Alt,
-                    Shift = b.Shift
-                })
-                .ToList();
-
             Client live = ClientSingleton.GetClient() ?? roClient;
-            if (live?.processManager == null)
+            if (live?.processManager == null || live.input == null || !live.processManager.IsAttached)
             {
                 return;
             }
 
-            int delay = Math.Max(InterSkillDelayMinMs, Math.Min(slot.InterSkillDelayMs, InterSkillDelayMaxMs));
-            int hold = MacroSequenceIntraKeyHoldMs;
-
-            for (int ki = 0; ki < keysCopy.Count; ki++)
+            // Wrap around if past the end of the list
+            if (slot.currentStep >= resolved.Count)
             {
-                if (this._stopped)
-                {
-                    break;
-                }
+                slot.currentStep = 0;
+            }
 
-                IntPtr hwnd = live.processManager.GetGameWindowOrNull();
-                if (hwnd == IntPtr.Zero)
-                {
-                    break;
-                }
+            AhkSkillBinding key = resolved[slot.currentStep];
+            int vk = (int)key.ParseKey();
 
-                AhkSkillBinding key = keysCopy[ki];
-                int vk = (int)key.ParseKey();
-                if (vk == (int)FormsKeys.None)
-                {
-                    continue;
-                }
-
-                bool chord = key.Ctrl || key.Alt || key.Shift;
-
+            if (vk != (int)FormsKeys.None)
+            {
+                bool speedBoost = string.Equals(this.ahkMode, SPEED_BOOST, StringComparison.Ordinal);
                 try
                 {
-                    if (slot.UseSendInput)
-                    {
-                        live.input.TryFocusGameWindowForSkillMacro();
-                        if (chord)
-                        {
-                            live.input.SendMacroChordFullPressSendInput(vk, key.Ctrl, key.Alt, key.Shift, false, hold);
-                        }
-                        else
-                        {
-                            live.input.SendMacroKeyFullPressSendInput(vk, hold);
-                        }
-                    }
-                    else if (chord)
-                    {
-                        live.input.PostMacroChordRsmStyle(hwnd, vk, key.Ctrl, key.Alt, key.Shift, false, hold);
-                    }
-                    else
-                    {
-                        live.input.PostMacroKeyTapRsmStyle(hwnd, vk, hold);
-                    }
-
-                    if (slot.ClickActive && !this._stopped)
-                    {
-                        SleepWhileRunning(ClickAfterKeyDelayMs);
-                        if (!this._stopped)
-                        {
-                            IntPtr clickHwnd = live.processManager.GetGameWindowOrNull();
-                            if (clickHwnd != IntPtr.Zero)
-                            {
-                                Native.POINT cur;
-                                Native.GetCursorPos(out cur);
-                                Native.ScreenToClient(clickHwnd, ref cur);
-                                try
-                                {
-                                    live.input.ClickAtExactWithFlick(cur.X, cur.Y);
-                                }
-                                catch (Exception clickEx)
-                                {
-                                    Debug.WriteLine($"[AHK] Slot {slot.SlotId} click: {clickEx.Message}");
-                                }
-                            }
-                        }
-                    }
+                    FireVanillaSkillStep(live, slot, key, vk, speedBoost);
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[AHK] Slot {slot.SlotId} key send: {ex.Message}");
-                    break;
-                }
-
-                if (delay > 0 && !this._stopped && ki < keysCopy.Count - 1)
-                {
-                    SleepWhileRunning(delay);
                 }
             }
+
+            slot.currentStep++;
+        }
+
+        /// <summary>Matches stock <c>FireOnceWithClick</c> / <c>FireOnceSpeedBoost</c> / <c>FireOnceKeyOnly</c> behavior.</summary>
+        private void FireVanillaSkillStep(Client roClient, AhkSlotConfig slot, AhkSkillBinding binding, int vk, bool speedBoost)
+        {
+            if (this.noShift)
+            {
+                roClient.input.SendKey((int)FormsKeys.ShiftKey, true);
+            }
+
+            if (binding.Ctrl || binding.Alt || binding.Shift)
+            {
+                roClient.input.SendKeyChord(vk, binding.Ctrl, binding.Alt, binding.Shift, false, true);
+            }
+            else
+            {
+                roClient.input.SendKey(vk, true);
+            }
+
+            if (slot.ClickActive)
+            {
+                CursorClientPoint(roClient, out int cx, out int cy);
+                if (speedBoost)
+                {
+                    roClient.input.ClickAt(cx, cy);
+                }
+                else if (this.mouseFlick)
+                {
+                    roClient.input.ClickAtWithFlick(cx, cy);
+                }
+                else
+                {
+                    roClient.input.ClickAt(cx, cy);
+                }
+            }
+
+            if (this.noShift)
+            {
+                roClient.input.SendKey((int)FormsKeys.ShiftKey, true);
+            }
+        }
+
+        private static void CursorClientPoint(Client roClient, out int cx, out int cy)
+        {
+            Native.POINT p;
+            Native.GetCursorPos(out p);
+            IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
+            if (hWnd != IntPtr.Zero)
+            {
+                Native.ScreenToClient(hWnd, ref p);
+            }
+
+            cx = p.X;
+            cy = p.Y;
         }
 
         private static bool IsSlotPressed(AhkSlotConfig slot)
@@ -1017,6 +1092,36 @@ namespace _4RTools.Model
                 }
 
                 if (slot.ParseTriggerKey() != keyCode)
+                {
+                    continue;
+                }
+
+                if (IsSlotPressed(slot))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsTriggerClaimedByActiveSlot(FormsKeys keyCode, bool ctrl, bool alt, bool shift, bool win)
+        {
+            EnsureSlotsConfigured();
+            string expectedSignature = BuildTriggerSignature(keyCode, ctrl, alt, shift, win);
+            if (string.IsNullOrEmpty(expectedSignature))
+            {
+                return false;
+            }
+
+            foreach (AhkSlotConfig slot in this.Slots)
+            {
+                if (!slot.HasBinding)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(BuildTriggerSignature(slot), expectedSignature, StringComparison.Ordinal))
                 {
                     continue;
                 }

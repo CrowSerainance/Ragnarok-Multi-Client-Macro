@@ -73,6 +73,11 @@ namespace _4RTools.Model
 
             if (IsWpfKeyDown(this.keySpammer))
             {
+                if (InputAutomationStopProtocol.ShouldYieldBuffStyleInput())
+                {
+                    return 0;
+                }
+
                 InputAutomationStopProtocol.EnterExclusiveAutomation();
                 try
                 {

@@ -26,8 +26,22 @@ public class InputSimulator
     /// <summary>Resolve and cache the game window handle. Call once at the start of each operation.</summary>
     private IntPtr ResolveWindowHandle()
     {
-        _cachedHwnd = _processManager.GetGameWindowOrNull();
+        _cachedHwnd = _processManager.GetMacroTargetWindowOrNull();
         return _cachedHwnd;
+    }
+
+    /// <summary>Forces clicks/keys to use this HWND (e.g. macro chain after resolving render target).</summary>
+    public void SetCachedWindowHandle(IntPtr hWnd)
+    {
+        _cachedHwnd = hWnd;
+    }
+
+    /// <summary>Matches 4RTools <see cref="SendKey"/> timing when configured hold is small (NDL / macro slot).</summary>
+    public int MacroHoldDurationMs(int userConfiguredIntraKeyMs)
+    {
+        if (userConfiguredIntraKeyMs <= 20)
+            return GaussianDelay(55, 15, 25, 100);
+        return Math.Max(25, Math.Min(150, userConfiguredIntraKeyMs));
     }
 
     /// <summary>Returns the most recently resolved window handle (fast, no re-query).</summary>
@@ -205,6 +219,44 @@ public class InputSimulator
         {
             Thread.Sleep(_rng.Next(8, 16));
             Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
+        }
+    }
+
+    /// <summary>
+    /// Bind-slot chain: synchronous tap to an explicit HWND (each key processed before the next).
+    /// </summary>
+    public void SendMacroKeyTapSendMessageToWindow(IntPtr hWnd, int vkCode, int holdMs)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        int hold = Math.Max(12, holdMs);
+        uint ld = BuildKeyDownLParam(vkCode);
+        uint lu = BuildKeyUpLParam(vkCode);
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)ld);
+        Thread.Sleep(hold);
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lu);
+    }
+
+    /// <summary>Chord variant of <see cref="SendMacroKeyTapSendMessageToWindow"/>.</summary>
+    public void SendMacroChordSendMessageToWindow(IntPtr hWnd, int vkCode, bool ctrl, bool alt, bool shift, bool win, int holdMs)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        int hold = Math.Max(12, holdMs);
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        foreach (int m in modifiers)
+        {
+            Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)m, (IntPtr)BuildKeyDownLParam(m));
+            Thread.Sleep(_rng.Next(10, 22));
+        }
+
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
+        Thread.Sleep(hold);
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(_rng.Next(10, 20));
+            int m = modifiers[i];
+            Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)m, (IntPtr)BuildKeyUpLParam(m));
         }
     }
 

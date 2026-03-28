@@ -77,19 +77,117 @@ public class ProcessManager
         }
     }
 
-    /// <summary>Game window: attached process window, or first Muh.exe main window when not attached (for pixel mode + input).</summary>
+    /// <summary>Top-level game window for the attached PID; if not attached, first Muh.exe main window (legacy).</summary>
     public IntPtr GetGameWindowOrNull()
     {
-        if (IsAttached && WindowHandle != IntPtr.Zero) return WindowHandle;
+        if (!IsAttached || _process == null)
+            return GetMuhMainWindowOrNull();
+
+        if (WindowHandle != IntPtr.Zero && Native.IsWindowVisible(WindowHandle))
+            return WindowHandle;
+
+        FindWindowHandle();
+        if (WindowHandle != IntPtr.Zero)
+            return WindowHandle;
+
+        try
+        {
+            _process.Refresh();
+            if (_process.MainWindowHandle != IntPtr.Zero)
+            {
+                WindowHandle = _process.MainWindowHandle;
+                return WindowHandle;
+            }
+        }
+        catch { }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>When not attached, first Muh.exe main window (legacy pixel / probe helpers).</summary>
+    public IntPtr GetMuhMainWindowOrNull()
+    {
         foreach (var p in System.Diagnostics.Process.GetProcessesByName("Muh"))
         {
             try
             {
-                if (p.MainWindowHandle != IntPtr.Zero) return p.MainWindowHandle;
+                if (p.MainWindowHandle != IntPtr.Zero)
+                    return p.MainWindowHandle;
             }
             finally { p.Dispose(); }
         }
+
         return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// HWND for WM_KEY / mouse macros: largest visible client descendant (render surface), else top-level.
+    /// </summary>
+    public IntPtr GetMacroTargetWindowOrNull()
+    {
+        IntPtr top = GetGameWindowOrNull();
+        return ResolveLargestClientDescendant(top);
+    }
+
+    private static int ClientAreaPixels(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero || !Native.GetClientRect(hWnd, out Native.RECT rc))
+            return 0;
+        int w = rc.Right - rc.Left;
+        int h = rc.Bottom - rc.Top;
+        return Math.Max(0, w) * Math.Max(0, h);
+    }
+
+    private static List<IntPtr> ListDirectChildWindows(IntPtr parent)
+    {
+        var list = new List<IntPtr>();
+        Native.EnumChildWindows(parent, (ch, _) =>
+        {
+            list.Add(ch);
+            return true;
+        }, IntPtr.Zero);
+        return list;
+    }
+
+    /// <summary>BFS for visible descendant with largest client area (ties favor deeper).</summary>
+    private static IntPtr ResolveLargestClientDescendant(IntPtr root)
+    {
+        if (root == IntPtr.Zero)
+            return root;
+
+        IntPtr best = root;
+        int bestArea = ClientAreaPixels(root);
+        int bestDepth = 0;
+
+        var q = new Queue<(IntPtr w, int depth)>();
+        q.Enqueue((root, 0));
+        int steps = 0;
+        while (q.Count > 0 && steps++ < 80)
+        {
+            (IntPtr parent, int depth) = q.Dequeue();
+            if (depth > 8)
+                continue;
+
+            foreach (IntPtr ch in ListDirectChildWindows(parent))
+            {
+                if (!Native.IsWindowVisible(ch))
+                    continue;
+                int a = ClientAreaPixels(ch);
+                if (a < 80 * 60)
+                    continue;
+
+                if (a > bestArea || (a == bestArea && depth + 1 > bestDepth))
+                {
+                    best = ch;
+                    bestArea = a;
+                    bestDepth = depth + 1;
+                }
+
+                q.Enqueue((ch, depth + 1));
+            }
+        }
+
+        return best;
     }
 
     /// <summary>Last attach failure: Win32 error and NtOpenProcess NTSTATUS (e.g. "Win32=5, NTSTATUS=0xC0000022"). Empty if attach succeeded or not yet attempted.</summary>
@@ -506,6 +604,10 @@ public class ProcessManager
                         if (System.IO.File.Exists(sysPath) && StartAbyssGateDriver(sysPath))
                         {
                             System.Diagnostics.Debug.WriteLine($"[ProcessManager] AbyssGate driver fully connected and ready to read memory for PID {_process.Id}");
+                            AttachedProcessName = _process.ProcessName;
+                            FindWindowHandle();
+                            lock (_pidLock) { _attachedPids.Add(_process.Id); }
+                            AttachStateChanged?.Invoke();
                             return true;
                         }
 
@@ -910,19 +1012,59 @@ public class ProcessManager
         return true;
     }
 
+    /// <summary>
+    /// Prefer <see cref="Process.MainWindowHandle"/>, then largest visible top-level window for the PID.
+    /// </summary>
     private void FindWindowHandle()
     {
         WindowHandle = IntPtr.Zero;
+        if (_process == null || ProcessId == 0)
+            return;
+
+        try
+        {
+            _process.Refresh();
+            IntPtr main = _process.MainWindowHandle;
+            if (main != IntPtr.Zero && Native.IsWindowVisible(main))
+            {
+                WindowHandle = main;
+                return;
+            }
+        }
+        catch { }
+
+        IntPtr best = IntPtr.Zero;
+        int bestArea = 0;
+        uint targetPid = (uint)ProcessId;
+
         Native.EnumWindows((hWnd, _) =>
         {
             Native.GetWindowThreadProcessId(hWnd, out uint pid);
-            if (pid == ProcessId)
+            if (pid != targetPid)
+                return true;
+            if (!Native.IsWindowVisible(hWnd))
+                return true;
+            if (Native.GetWindow(hWnd, Native.GW_OWNER) != IntPtr.Zero)
+                return true;
+
+            if (!Native.GetWindowRect(hWnd, out Native.RECT rc))
+                return true;
+            int w = rc.Right - rc.Left;
+            int h = rc.Bottom - rc.Top;
+            if (w < 120 || h < 120)
+                return true;
+
+            int area = w * h;
+            if (area > bestArea)
             {
-                WindowHandle = hWnd;
-                return false;
+                bestArea = area;
+                best = hWnd;
             }
+
             return true;
         }, IntPtr.Zero);
+
+        WindowHandle = best;
     }
 
     public void Detach()

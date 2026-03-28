@@ -53,19 +53,19 @@ namespace _4RTools.Forms
             // lblBindingHint
             //
             this.lblBindingHint.AutoSize = true;
-            this.lblBindingHint.Location = new System.Drawing.Point(12, 160);
+            this.lblBindingHint.Location = new System.Drawing.Point(12, 236);
             this.lblBindingHint.MaximumSize = new System.Drawing.Size(520, 0);
             this.lblBindingHint.Name = "lblBindingHint";
             this.lblBindingHint.Size = new System.Drawing.Size(518, 26);
             this.lblBindingHint.TabIndex = 1;
-            this.lblBindingHint.Text = "Bind: trigger + key list. One press runs the whole chain in order (with pauses). Release trigger before pressing again. PostMessage default; SendInput optional.";
+            this.lblBindingHint.Text = "Per slot: set trigger + keys in order. One press runs the whole sequence once (stock SendKey/Click path). Release the trigger before pressing again to repeat.";
             //
             // AHKForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(560, 198);
+            this.ClientSize = new System.Drawing.Size(560, 268);
             this.Controls.Add(this.lblBindingHint);
             this.Controls.Add(this.panelSlotsHost);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
