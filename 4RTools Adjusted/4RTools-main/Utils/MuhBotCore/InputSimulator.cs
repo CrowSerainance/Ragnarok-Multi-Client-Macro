@@ -15,7 +15,23 @@ public class InputSimulator
     private readonly int _mousePosXOffset;
     private readonly int _mousePosYOffset;
     private readonly Random _rng = new();
-    private IntPtr WindowHandle => _processManager.GetGameWindowOrNull();
+
+    /// <summary>
+    /// Cached window handle, refreshed each operation. Avoids repeated GetGameWindowOrNull() calls
+    /// within a single SendKey/SendClick sequence, which could return different handles if the
+    /// window closes mid-operation (leaving keys stuck down or clicks orphaned).
+    /// </summary>
+    private IntPtr _cachedHwnd = IntPtr.Zero;
+
+    /// <summary>Resolve and cache the game window handle. Call once at the start of each operation.</summary>
+    private IntPtr ResolveWindowHandle()
+    {
+        _cachedHwnd = _processManager.GetGameWindowOrNull();
+        return _cachedHwnd;
+    }
+
+    /// <summary>Returns the most recently resolved window handle (fast, no re-query).</summary>
+    private IntPtr WindowHandle => _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
 
     public InputSimulator(ProcessManager processManager, MemoryReader memory, int mousePosXOffset, int mousePosYOffset)
     {
@@ -41,15 +57,22 @@ public class InputSimulator
 
     /// <summary>
     /// Send key down and key up with random delay (anti-detection). Use noDelay: true for NDL mode (minimal delay).
+    /// Resolves window handle once so both down and up go to the same target.
     /// </summary>
     public void SendKey(int vkCode, bool noDelay = false)
     {
-        PostKeyDown(vkCode);
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
+        uint lParamDown = BuildKeyDownLParam(vkCode);
+        uint lParamUp = BuildKeyUpLParam(vkCode);
+
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
         if (noDelay)
             Thread.Sleep(_rng.Next(8, 15));
         else
             Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        PostKeyUp(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
     }
 
     /// <summary>
@@ -57,13 +80,15 @@ public class InputSimulator
     /// </summary>
     public void SendKeySendMessage(int vkCode)
     {
-        uint scanCode = Native.MapVirtualKeyW((uint)vkCode, 0);
-        uint lParamDown = 0x00000001 | (scanCode << 16);
-        uint lParamUp   = 0xC0000001 | (scanCode << 16);
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
 
-        Native.SendMessage(WindowHandle, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
+        uint lParamDown = BuildKeyDownLParam(vkCode);
+        uint lParamUp = BuildKeyUpLParam(vkCode);
+
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
         Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        Native.SendMessage(WindowHandle, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
     }
 
     /// <summary>
@@ -71,39 +96,374 @@ public class InputSimulator
     /// </summary>
     public void SendCtrlCombo(int vkCode)
     {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
         const int ctrlVk = 0x11; // VK_CONTROL
 
-        PostKeyDown(ctrlVk);
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)ctrlVk, (IntPtr)BuildKeyDownLParam(ctrlVk));
         Thread.Sleep(_rng.Next(15, 40));
-        PostKeyDown(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
         Thread.Sleep(_rng.Next(20, 45));
-        PostKeyUp(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
         Thread.Sleep(_rng.Next(15, 35));
-        PostKeyUp(ctrlVk);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)ctrlVk, (IntPtr)BuildKeyUpLParam(ctrlVk));
     }
 
     public void SendKeyChord(int vkCode, bool ctrl, bool alt, bool shift, bool win, bool noDelay = false)
     {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
         int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
         foreach (int modifier in modifiers)
         {
-            PostKeyDown(modifier);
+            Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)modifier, (IntPtr)BuildKeyDownLParam(modifier));
             Thread.Sleep(_rng.Next(5, 12));
         }
 
-        PostKeyDown(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
         if (noDelay)
             Thread.Sleep(_rng.Next(8, 15));
         else
             Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        PostKeyUp(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
 
         for (int i = modifiers.Length - 1; i >= 0; i--)
         {
             Thread.Sleep(_rng.Next(5, 12));
-            PostKeyUp(modifiers[i]);
+            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
         }
     }
+
+    public void SendKeyChordSendMessage(int vkCode, bool ctrl, bool alt, bool shift, bool win)
+    {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        foreach (int modifier in modifiers)
+        {
+            Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)modifier, (IntPtr)BuildKeyDownLParam(modifier));
+            Thread.Sleep(_rng.Next(5, 12));
+        }
+
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
+        Thread.Sleep(GaussianDelay(55, 15, 25, 100));
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(_rng.Next(5, 12));
+            Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
+        }
+    }
+
+    /// <summary>Resolve and cache game HWND; call once before a multi-key skill macro.</summary>
+    public bool TryBeginSkillSequenceWindow() => ResolveWindowHandle() != IntPtr.Zero;
+
+    /// <summary>
+    /// Skill macro: synchronous <see cref="Native.SendMessage"/> so the window processes each key before the next.
+    /// Does not call SetForegroundWindow — the client stays in the background.
+    /// </summary>
+    public void SendKeyTapSendMessageForSequence(int vkCode, int holdMs)
+    {
+        IntPtr hWnd = WindowHandle;
+        if (hWnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        uint lParamDown = BuildKeyDownLParam(vkCode);
+        uint lParamUp = BuildKeyUpLParam(vkCode);
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
+        Thread.Sleep(Math.Max(12, holdMs));
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+    }
+
+    /// <summary>Modifier chord for skill macro; same synchronous delivery as <see cref="SendKeyTapSendMessageForSequence"/>.</summary>
+    public void SendKeyChordSendMessageForSequence(int vkCode, bool ctrl, bool alt, bool shift, bool win, int holdMs)
+    {
+        IntPtr hWnd = WindowHandle;
+        if (hWnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        foreach (int modifier in modifiers)
+        {
+            Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)modifier, (IntPtr)BuildKeyDownLParam(modifier));
+            Thread.Sleep(_rng.Next(8, 18));
+        }
+
+        Native.SendMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
+        Thread.Sleep(Math.Max(12, holdMs));
+        Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(_rng.Next(8, 16));
+            Native.SendMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
+        }
+    }
+
+    #region Skill Spammer — SendInput (foreground)
+
+    private static int InputStructSize => Marshal.SizeOf(typeof(Native.INPUT));
+
+    private static Native.INPUT KeyboardInput(ushort vk, uint extraFlags, bool keyUp)
+    {
+        uint flags = (keyUp ? Native.KEYEVENTF_KEYUP : 0) | extraFlags;
+        return new Native.INPUT
+        {
+            type = Native.INPUT_KEYBOARD,
+            U = new Native.INPUTUNION
+            {
+                ki = new Native.KEYBDINPUT
+                {
+                    wVk = vk,
+                    wScan = 0,
+                    dwFlags = flags,
+                    time = 0,
+                    dwExtraInfo = UIntPtr.Zero
+                }
+            }
+        };
+    }
+
+    private static Native.INPUT KeyboardInputScan(ushort scan, bool extended, bool keyUp)
+    {
+        uint flags = Native.KEYEVENTF_SCANCODE;
+        if (extended)
+        {
+            flags |= Native.KEYEVENTF_EXTENDEDKEY;
+        }
+
+        if (keyUp)
+        {
+            flags |= Native.KEYEVENTF_KEYUP;
+        }
+
+        return new Native.INPUT
+        {
+            type = Native.INPUT_KEYBOARD,
+            U = new Native.INPUTUNION
+            {
+                ki = new Native.KEYBDINPUT
+                {
+                    wVk = 0,
+                    wScan = scan,
+                    dwFlags = flags,
+                    time = 0,
+                    dwExtraInfo = UIntPtr.Zero
+                }
+            }
+        };
+    }
+
+    /// <summary>Same extended cluster as WM_KEY lParam (SendInput KEYEVENTF_EXTENDEDKEY).</summary>
+    private static uint ExtendedKeyEventFlags(ushort vk)
+    {
+        switch (vk)
+        {
+            case 0x21:
+            case 0x22:
+            case 0x23:
+            case 0x24:
+            case 0x25:
+            case 0x26:
+            case 0x27:
+            case 0x28:
+            case 0x2D:
+            case 0x2E:
+            case 0x5D:
+            case 0x6F:
+                return Native.KEYEVENTF_EXTENDEDKEY;
+            default:
+                return 0;
+        }
+    }
+
+    private static uint SendInput1(Native.INPUT input)
+    {
+        return Native.SendInput(1, new[] { input }, InputStructSize);
+    }
+
+    private static bool SendKeyDownSendInput(ushort vk)
+    {
+        bool extK = ExtendedKeyEventFlags(vk) != 0;
+        ushort scan = (ushort)(Native.MapVirtualKeyW(vk, Native.MAPVK_VK_TO_VSC) & 0xFFu);
+        if (scan != 0 && SendInput1(KeyboardInputScan(scan, extK, keyUp: false)) != 0)
+        {
+            return true;
+        }
+
+        return SendInput1(KeyboardInput(vk, ExtendedKeyEventFlags(vk), keyUp: false)) != 0;
+    }
+
+    private static void SendKeyUpSendInput(ushort vk)
+    {
+        bool extK = ExtendedKeyEventFlags(vk) != 0;
+        ushort scan = (ushort)(Native.MapVirtualKeyW(vk, Native.MAPVK_VK_TO_VSC) & 0xFFu);
+        if (scan != 0)
+        {
+            SendInput1(KeyboardInputScan(scan, extK, keyUp: true));
+        }
+        else
+        {
+            SendInput1(KeyboardInput(vk, ExtendedKeyEventFlags(vk), keyUp: true));
+        }
+    }
+
+    private bool TryTapVkSendInput(ushort vk, int holdMs)
+    {
+        bool extK = ExtendedKeyEventFlags(vk) != 0;
+        ushort scan = (ushort)(Native.MapVirtualKeyW(vk, Native.MAPVK_VK_TO_VSC) & 0xFFu);
+        if (scan != 0)
+        {
+            if (SendInput1(KeyboardInputScan(scan, extK, keyUp: false)) != 0)
+            {
+                Thread.Sleep(Math.Max(12, holdMs));
+                if (SendInput1(KeyboardInputScan(scan, extK, keyUp: true)) != 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        uint ext = ExtendedKeyEventFlags(vk);
+        if (SendInput1(KeyboardInput(vk, ext, keyUp: false)) != 0)
+        {
+            Thread.Sleep(Math.Max(12, holdMs));
+            if (SendInput1(KeyboardInput(vk, ext, keyUp: true)) != 0)
+            {
+                return true;
+            }
+
+            IntPtr hWnd = WindowHandle;
+            if (hWnd != IntPtr.Zero)
+            {
+                Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vk, (IntPtr)BuildKeyUpLParam(vk));
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// One key down/up via SendInput (scan-code first, then VK). Requires foreground; falls back to
+    /// <see cref="SendKeyTapSendMessageForSequence"/> if both fail.
+    /// </summary>
+    public void SendKeyTapSendInputForSkillSpammer(int vkCode, int holdMs)
+    {
+        ushort vk = (ushort)(vkCode & 0xFFFF);
+        if (TryTapVkSendInput(vk, holdMs))
+        {
+            return;
+        }
+
+        SendKeyTapSendMessageForSequence(vkCode, holdMs);
+    }
+
+    /// <summary>Modifier chord via SendInput; falls back to <see cref="SendKeyChordSendMessageForSequence"/>.</summary>
+    public void SendKeyChordSendInputForSkillSpammer(int vkCode, bool ctrl, bool alt, bool shift, bool win, int holdMs)
+    {
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        ushort vk = (ushort)(vkCode & 0xFFFF);
+
+        for (int mi = 0; mi < modifiers.Length; mi++)
+        {
+            ushort m = (ushort)modifiers[mi];
+            if (!SendKeyDownSendInput(m))
+            {
+                for (int r = mi - 1; r >= 0; r--)
+                {
+                    SendKeyUpSendInput((ushort)modifiers[r]);
+                }
+
+                SendKeyChordSendMessageForSequence(vkCode, ctrl, alt, shift, win, holdMs);
+                return;
+            }
+
+            Thread.Sleep(_rng.Next(10, 20));
+        }
+
+        if (!SendKeyDownSendInput(vk))
+        {
+            for (int r = modifiers.Length - 1; r >= 0; r--)
+            {
+                SendKeyUpSendInput((ushort)modifiers[r]);
+            }
+
+            SendKeyChordSendMessageForSequence(vkCode, ctrl, alt, shift, win, holdMs);
+            return;
+        }
+
+        Thread.Sleep(Math.Max(12, holdMs));
+        SendKeyUpSendInput(vk);
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(_rng.Next(8, 16));
+            SendKeyUpSendInput((ushort)modifiers[i]);
+        }
+    }
+
+    /// <summary>
+    /// Stronger foreground for SendInput: restore, AttachThreadInput from foreground thread, BringWindowToTop.
+    /// </summary>
+    public bool TryFocusGameWindowForSkillMacro()
+    {
+        IntPtr target = WindowHandle;
+        if (target == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        Native.ShowWindow(target, Native.SW_RESTORE);
+
+        if (Native.GetForegroundWindow() == target)
+        {
+            return true;
+        }
+
+        uint thisId = Native.GetCurrentThreadId();
+        IntPtr fgWnd = Native.GetForegroundWindow();
+        uint fgThread = fgWnd != IntPtr.Zero ? Native.GetWindowThreadProcessId(fgWnd, out _) : 0;
+
+        if (fgThread != 0 && fgThread != thisId)
+        {
+            Native.AttachThreadInput(thisId, fgThread, true);
+        }
+
+        Native.BringWindowToTop(target);
+        bool ok = Native.SetForegroundWindow(target);
+
+        if (fgThread != 0 && fgThread != thisId)
+        {
+            Native.AttachThreadInput(thisId, fgThread, false);
+        }
+
+        if (ok || Native.GetForegroundWindow() == target)
+        {
+            return true;
+        }
+
+        uint targetThread = Native.GetWindowThreadProcessId(target, out _);
+        if (targetThread != 0 && targetThread != thisId)
+        {
+            Native.AttachThreadInput(thisId, targetThread, true);
+            Native.SetForegroundWindow(target);
+            Native.AttachThreadInput(thisId, targetThread, false);
+        }
+
+        return Native.GetForegroundWindow() == target;
+    }
+
+    #endregion
 
     public void SendKey(char key)
     {
@@ -118,8 +478,10 @@ public class InputSimulator
     /// </summary>
     public void SendAtChar()
     {
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
         uint scanCode = Native.MapVirtualKeyW(0x32, 0); // '2' key scan code (@ = Shift+2)
-        Native.PostMessage(WindowHandle, Native.WM_CHAR, (IntPtr)0x40, (IntPtr)(0x00000001 | (scanCode << 16)));
+        Native.PostMessage(hWnd, Native.WM_CHAR, (IntPtr)0x40, (IntPtr)(0x00000001 | (scanCode << 16)));
     }
 
     /// <summary>
@@ -180,12 +542,15 @@ public class InputSimulator
     /// </summary>
     public void SendClick(int x, int y)
     {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
         IntPtr lParam = (IntPtr)((y << 16) | (x & 0xFFFF));
-        Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
+        Native.PostMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
         Thread.Sleep(_rng.Next(8, 18));
-        Native.PostMessage(WindowHandle, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
+        Native.PostMessage(hWnd, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
         Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        Native.PostMessage(WindowHandle, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
+        Native.PostMessage(hWnd, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
     }
 
     /// <summary>
@@ -194,12 +559,15 @@ public class InputSimulator
     /// </summary>
     public void PostClick(int x, int y)
     {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
         IntPtr lParam = (IntPtr)((y << 16) | (x & 0xFFFF));
-        Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
+        Native.PostMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
         Thread.Sleep(_rng.Next(2, 5));
-        Native.PostMessage(WindowHandle, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
+        Native.PostMessage(hWnd, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
         Thread.Sleep(_rng.Next(4, 10));
-        Native.PostMessage(WindowHandle, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
+        Native.PostMessage(hWnd, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
     }
 
     /// <summary>
@@ -208,11 +576,14 @@ public class InputSimulator
     /// </summary>
     public void SendClickWithSendMessage(int x, int y)
     {
+        IntPtr hWnd = ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+
         IntPtr lParam = (IntPtr)((y << 16) | (x & 0xFFFF));
-        Native.SendMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
-        Native.SendMessage(WindowHandle, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
+        Native.SendMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, lParam);
+        Native.SendMessage(hWnd, Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParam);
         Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        Native.SendMessage(WindowHandle, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
+        Native.SendMessage(hWnd, Native.WM_LBUTTONUP, IntPtr.Zero, lParam);
     }
 
 
@@ -304,12 +675,38 @@ public class InputSimulator
         }
         else
         {
-            // PostMessage-only flick: send a mouse-move to offset position first
+            IntPtr hWnd = ResolveWindowHandle();
+            if (hWnd == IntPtr.Zero) return;
             IntPtr flickParam = (IntPtr)(((screenY - 1) << 16) | ((screenX - 1) & 0xFFFF));
-            Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
+            Native.PostMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
             Thread.Sleep(_rng.Next(8, 18));
         }
         ClickAt(screenX, screenY);
+    }
+
+    /// <summary>
+    /// Exact click with mouse flick. Keeps the anti-dedup flick without adding Gaussian jitter.
+    /// </summary>
+    public void ClickAtExactWithFlick(int screenX, int screenY)
+    {
+        if (_mousePosXOffset != 0 && _mousePosYOffset != 0)
+        {
+            SetMousePosition(screenX - 1, screenY - 1);
+            Thread.Sleep(_rng.Next(8, 18));
+            SetMousePosition(screenX, screenY);
+            SendClick(screenX, screenY);
+            _processManager.CloseWriteHandle();
+        }
+        else
+        {
+            IntPtr hWnd = ResolveWindowHandle();
+            if (hWnd == IntPtr.Zero) return;
+
+            IntPtr flickParam = (IntPtr)(((screenY - 1) << 16) | ((screenX - 1) & 0xFFFF));
+            Native.PostMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
+            Thread.Sleep(_rng.Next(8, 18));
+            SendClick(screenX, screenY);
+        }
     }
 
     /// <summary>
@@ -324,8 +721,10 @@ public class InputSimulator
         }
         else
         {
+            IntPtr hWnd = ResolveWindowHandle();
+            if (hWnd == IntPtr.Zero) return;
             IntPtr flickParam = (IntPtr)(((screenY - 1) << 16) | ((screenX - 1) & 0xFFFF));
-            Native.PostMessage(WindowHandle, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
+            Native.PostMessage(hWnd, Native.WM_MOUSEMOVE, IntPtr.Zero, flickParam);
             Thread.Sleep(_rng.Next(2, 5));
         }
         PostClick(screenX, screenY);
@@ -367,7 +766,10 @@ public class InputSimulator
     public bool TryFocusGameWindow()
     {
         if (WindowHandle == IntPtr.Zero)
+        {
             return false;
+        }
+
         return Native.SetForegroundWindow(WindowHandle);
     }
 
@@ -399,26 +801,152 @@ public class InputSimulator
         return (screenX + jitterX, screenY + jitterY);
     }
 
+    /// <summary>WM_KEY* lParam bit 24 — extended keys per MSDN (arrows, home/end, ins/del, numpad /, etc.).</summary>
+    private static uint ExtendedKeyLParamMask(int vkCode)
+    {
+        switch (vkCode)
+        {
+            case 0x21: // Prior
+            case 0x22: // Next
+            case 0x23: // End
+            case 0x24: // Home
+            case 0x25: // Left
+            case 0x26: // Up
+            case 0x27: // Right
+            case 0x28: // Down
+            case 0x2D: // Insert
+            case 0x2E: // Delete
+            case 0x5D: // Apps
+            case 0x6F: // Divide (numpad)
+                return 0x01000000u;
+            default:
+                return 0;
+        }
+    }
+
     private static uint BuildKeyDownLParam(int vkCode)
     {
         uint scanCode = Native.MapVirtualKeyW((uint)vkCode, 0);
-        return 0x00000001 | (scanCode << 16);
+        return 0x00000001 | (scanCode << 16) | ExtendedKeyLParamMask(vkCode);
     }
 
     private static uint BuildKeyUpLParam(int vkCode)
     {
         uint scanCode = Native.MapVirtualKeyW((uint)vkCode, 0);
-        return 0xC0000001 | (scanCode << 16);
+        return 0xC0000001 | (scanCode << 16) | ExtendedKeyLParamMask(vkCode);
     }
 
     public void PostKeyDown(int vkCode)
     {
-        Native.PostMessage(WindowHandle, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
     }
 
     public void PostKeyUp(int vkCode)
     {
-        Native.PostMessage(WindowHandle, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        if (hWnd == IntPtr.Zero) return;
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+    }
+
+    /// <summary>
+    /// Bind-slot macro: one full key cycle on a fixed HWND — WM_KEYDOWN, short hold, WM_KEYUP (correct lParam for RO).
+    /// </summary>
+    public void PostMacroKeyFullPress(IntPtr hWnd, int vkCode, int intraKeyHoldMs)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        int hold = Math.Max(5, Math.Min(15, intraKeyHoldMs));
+        uint ld = BuildKeyDownLParam(vkCode);
+        uint lu = BuildKeyUpLParam(vkCode);
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)ld);
+        Thread.Sleep(hold);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lu);
+    }
+
+    /// <summary>
+    /// Chord: modifier keydowns, full main-key press, modifier keyups — same HWND for the whole step.
+    /// </summary>
+    public void PostMacroChordFullPress(IntPtr hWnd, int vkCode, bool ctrl, bool alt, bool shift, bool win, int intraKeyHoldMs)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        const int modGapMs = 5;
+        foreach (int m in modifiers)
+        {
+            Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)m, (IntPtr)BuildKeyDownLParam(m));
+            Thread.Sleep(modGapMs);
+        }
+
+        PostMacroKeyFullPress(hWnd, vkCode, intraKeyHoldMs);
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(modGapMs);
+            int m = modifiers[i];
+            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)m, (IntPtr)BuildKeyUpLParam(m));
+        }
+    }
+
+    /// <summary>
+    /// rsm-master style: <c>PostMessage(WM_KEYDOWN/UP, vk, lParam: 0)</c> to a fixed HWND (same idea as
+    /// <c>RSMForm.AHKThreadExecution</c> → <c>Interop.PostMessage(..., 0)</c>). Many RO clients accept this
+    /// for chained skill keys where SendMessage + scan lParam does not.
+    /// </summary>
+    public void PostMacroKeyTapRsmStyle(IntPtr hWnd, int vkCode, int intraKeyHoldMs)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        int hold = Math.Max(5, Math.Min(25, intraKeyHoldMs));
+        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, IntPtr.Zero);
+        Thread.Sleep(hold);
+        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, IntPtr.Zero);
+    }
+
+    /// <summary>Modifier chord with zero lParam on all posts (rsm-style delivery).</summary>
+    public void PostMacroChordRsmStyle(IntPtr hWnd, int vkCode, bool ctrl, bool alt, bool shift, bool win, int intraKeyHoldMs)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
+        const int modGapMs = 5;
+        foreach (int m in modifiers)
+        {
+            Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)m, IntPtr.Zero);
+            Thread.Sleep(modGapMs);
+        }
+
+        PostMacroKeyTapRsmStyle(hWnd, vkCode, intraKeyHoldMs);
+
+        for (int i = modifiers.Length - 1; i >= 0; i--)
+        {
+            Thread.Sleep(modGapMs);
+            int m = modifiers[i];
+            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)m, IntPtr.Zero);
+        }
+    }
+
+    /// <summary>
+    /// Bind-slot macro: one full key cycle via SendInput (same intent as <see cref="PostMacroKeyFullPress"/>).
+    /// Uses scan-code path when available; requires foreground for reliable delivery.
+    /// </summary>
+    public void SendMacroKeyFullPressSendInput(int vkCode, int intraKeyHoldMs)
+    {
+        int hold = Math.Max(5, Math.Min(15, intraKeyHoldMs));
+        TryTapVkSendInput((ushort)(vkCode & 0xFFFF), hold);
+    }
+
+    /// <summary>Bind-slot chord via SendInput (modifiers + main key), aligned with <see cref="PostMacroChordFullPress"/>.</summary>
+    public void SendMacroChordFullPressSendInput(int vkCode, bool ctrl, bool alt, bool shift, bool win, int intraKeyHoldMs)
+    {
+        int hold = Math.Max(5, Math.Min(15, intraKeyHoldMs));
+        SendKeyChordSendInputForSkillSpammer(vkCode, ctrl, alt, shift, win, hold);
     }
 
     private static int[] BuildModifierList(bool ctrl, bool alt, bool shift, bool win)

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Windows.Input;
-using Newtonsoft.Json;
+using System.Linq;
 using System.Threading;
-using _4RTools.Utils;
 using System.Windows.Forms;
+using System.Windows.Input;
+using _4RTools.Utils;
 using _4RTools.Utils.MuhBotCore;
+using Newtonsoft.Json;
 
 namespace _4RTools.Model
 {
@@ -34,6 +35,7 @@ namespace _4RTools.Model
         public bool infinityLoopOn { get; set; } = false;
 
         public ChainConfig() { }
+
         public ChainConfig(int id)
         {
             this.id = id;
@@ -50,6 +52,7 @@ namespace _4RTools.Model
             this.infinityLoop = macro.infinityLoop;
             this.macroEntries = new Dictionary<string, MacroKey>(macro.macroEntries);
         }
+
         public ChainConfig(int id, Key trigger)
         {
             this.id = id;
@@ -69,6 +72,16 @@ namespace _4RTools.Model
             return (Native.GetAsyncKeyState((int)formsKey) & 0x8000) != 0;
         }
 
+        private static Keys ToFormsKey(Key wpfKey)
+        {
+            if (wpfKey == Key.None)
+            {
+                return Keys.None;
+            }
+
+            return (Keys)Enum.Parse(typeof(Keys), wpfKey.ToString());
+        }
+
         public string actionName { get; set; }
         private _4RThread thread;
         public List<ChainConfig> chainConfigs { get; set; } = new List<ChainConfig>();
@@ -76,7 +89,7 @@ namespace _4RTools.Model
         public Macro(string macroname, int macroLanes)
         {
             this.actionName = macroname;
-            for(int i = 1; i <= macroLanes; i++)
+            for (int i = 1; i <= macroLanes; i++)
             {
                 chainConfigs.Add(new ChainConfig(i, Key.None));
             }
@@ -89,7 +102,6 @@ namespace _4RTools.Model
                 chainConfigs[macroId - 1] = new ChainConfig(macroId);
             }
             catch (Exception) { }
-            
         }
 
         public string GetActionName()
@@ -104,75 +116,108 @@ namespace _4RTools.Model
 
         private int MacroExecutionThread(Client roClient)
         {
-            bool anyMacroTriggerHeld = false;
+            bool anyTriggered = false;
+
             foreach (ChainConfig chainConfig in this.chainConfigs)
             {
-                if (chainConfig.trigger != Key.None && IsWpfKeyDown(chainConfig.trigger))
+                Keys triggerKey = ToFormsKey(chainConfig.trigger);
+                if (triggerKey == Keys.None)
                 {
-                    anyMacroTriggerHeld = true;
-                    break;
+                    continue;
+                }
+
+                if (ProfileSingleton.GetCurrent().AHK.IsMainKeyClaimedByActiveSlot(triggerKey))
+                {
+                    continue;
+                }
+
+                if (IsWpfKeyDown(chainConfig.trigger))
+                {
+                    anyTriggered = true;
+                    ExecuteMacroChain(roClient, chainConfig);
                 }
             }
 
-            if (anyMacroTriggerHeld)
+            if (!anyTriggered)
             {
-                InputAutomationStopProtocol.EnterExclusiveAutomation();
+                Thread.Sleep(10);
             }
 
+            return 0;
+        }
+
+        private void ExecuteMacroChain(Client roClient, ChainConfig chainConfig)
+        {
+            InputAutomationStopProtocol.EnterExclusiveAutomation();
             try
             {
-                foreach (ChainConfig chainConfig in this.chainConfigs)
+                foreach (MacroKey macroKey in GetOrderedMacroEntries(chainConfig))
                 {
-                    if (chainConfig.trigger != Key.None && IsWpfKeyDown(chainConfig.trigger))
+                    if (macroKey == null || macroKey.key == Key.None)
                     {
-                        Dictionary<string, MacroKey> macro = chainConfig.macroEntries;
-                        for (int i = 1; i <= macro.Count; i++)//Ensure to execute keys in Order
-                        {
-                            MacroKey macroKey = macro["in" + i + "mac" + chainConfig.id];
-                            if (macroKey.key != Key.None)
-                            {
-                                if(chainConfig.instrumentKey != Key.None)
-                                {
-                                    //Press instrument key if exists.
-                                    Keys instrumentKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.instrumentKey.ToString());
-                                    roClient.input.SendKey((int)instrumentKey, true);
-                                }
+                        continue;
+                    }
 
-                                Keys thisk = (Keys)Enum.Parse(typeof(Keys), macroKey.key.ToString());
-                                Thread.Sleep(macroKey.delay);
-                                roClient.input.SendKey((int)thisk, true);
+                    if (chainConfig.instrumentKey != Key.None)
+                    {
+                        Keys instrumentKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.instrumentKey.ToString());
+                        roClient.input.SendKey((int)instrumentKey, true);
+                    }
 
-                                if (macroKey.hasClick) {
-                                    Native.POINT p;
-                                    Native.GetCursorPos(out p);
-                                    IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
-                                    if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
-                                    roClient.input.SendClick(p.X, p.Y);
-                                }
-                                
+                    Keys thisk = (Keys)Enum.Parse(typeof(Keys), macroKey.key.ToString());
+                    Thread.Sleep(macroKey.delay);
+                    roClient.input.SendKey((int)thisk, true);
 
-                                if(chainConfig.daggerKey != Key.None)
-                                {
-                                    //Press instrument key if exists.
-                                    Keys daggerKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.daggerKey.ToString());
-                                    roClient.input.SendKey((int)daggerKey, true);
-                                }
+                    if (macroKey.hasClick)
+                    {
+                        Native.POINT p;
+                        Native.GetCursorPos(out p);
+                        IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
+                        if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
+                        roClient.input.SendClick(p.X, p.Y);
+                    }
 
-                            }
-                        }
+                    if (chainConfig.daggerKey != Key.None)
+                    {
+                        Keys daggerKey = (Keys)Enum.Parse(typeof(Keys), chainConfig.daggerKey.ToString());
+                        roClient.input.SendKey((int)daggerKey, true);
                     }
                 }
             }
             finally
             {
-                if (anyMacroTriggerHeld)
-                {
-                    InputAutomationStopProtocol.LeaveExclusiveAutomation();
-                }
+                InputAutomationStopProtocol.LeaveExclusiveAutomation();
+            }
+        }
+
+        private static IEnumerable<MacroKey> GetOrderedMacroEntries(ChainConfig chainConfig)
+        {
+            if (chainConfig?.macroEntries == null)
+            {
+                yield break;
             }
 
-            Thread.Sleep(100);
-            return 0;
+            foreach (KeyValuePair<string, MacroKey> entry in chainConfig.macroEntries.OrderBy(kvp => ExtractMacroSlotIndex(kvp.Key)))
+            {
+                yield return entry.Value;
+            }
+        }
+
+        private static int ExtractMacroSlotIndex(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return int.MaxValue;
+            }
+
+            int start = key.StartsWith("in", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
+            int end = key.IndexOf("mac", StringComparison.OrdinalIgnoreCase);
+            if (end > start && int.TryParse(key.Substring(start, end - start), out int index))
+            {
+                return index;
+            }
+
+            return int.MaxValue;
         }
 
         public void Start()

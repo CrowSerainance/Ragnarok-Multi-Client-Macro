@@ -29,7 +29,7 @@ namespace _4RTools.Utils
         public delegate bool KeyboardHookHandler(Keys key);
         public static KeyboardHookHandler KeyDown;
 
-        private static bool Enabled;
+        private static volatile bool Enabled;
         private static Thread pollThread;
         private static volatile bool running;
 

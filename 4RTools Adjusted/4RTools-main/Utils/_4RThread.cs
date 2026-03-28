@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Linq;
 using System.Text;
@@ -9,18 +9,21 @@ namespace _4RTools.Utils
     public class _4RThread
     {
         private Thread thread;
+        private volatile bool _running;
 
+        public bool IsRunning => _running;
 
         public _4RThread(Func<int, int> toRun)
         {
+            _running = true;
             this.thread = new Thread(() =>
             {
-                while (true)
+                while (_running)
                 {
                     try
                     {
                         toRun(0);
-                    }catch(Exception ex) { 
+                    }catch(Exception ex) {
                         Console.WriteLine("[4RThread Exception] Error while Executing Thread Method ==== "+ex.Message);
                     }
                     finally
@@ -39,15 +42,19 @@ namespace _4RTools.Utils
 
         public static void Stop(_4RThread _4RThread)
         {
-            if (_4RThread != null && _4RThread.thread.IsAlive)
+            if (_4RThread != null)
             {
-                try {
-#pragma warning disable CS0618 // Thread.Suspend is obsolete but no safe alternative without rearchitecting the threading model
-                    _4RThread.thread.Suspend();
-#pragma warning restore CS0618
+                _4RThread._running = false;
+                try
+                {
+                    if (_4RThread.thread.IsAlive)
+                    {
+                        _4RThread.thread.Join(2000);
+                    }
                 }
-                catch (Exception ex) {
-                    Console.WriteLine("[4R Thread Exception] =========== We could not suspend curren thread: " + ex);
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[4R Thread Exception] =========== We could not stop current thread: " + ex);
                 }
             }
         }

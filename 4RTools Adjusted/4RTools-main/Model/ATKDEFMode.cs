@@ -1,20 +1,20 @@
 using System;
-using Newtonsoft.Json;
-using _4RTools.Utils;
-using System.Threading;
-using System.Drawing;
-using System.Windows.Input;
 using System.Collections.Generic;
+using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Input;
+using _4RTools.Utils;
 using _4RTools.Utils.MuhBotCore;
+using Newtonsoft.Json;
 
 namespace _4RTools.Model
 {
-    public enum  ATKDEFEnum
+    public enum ATKDEFEnum
     {
         ATK = 0,
         DEF = 1,
     }
+
     public class ATKDEFMode : Action
     {
         public static string ACTION_NAME_ATKDEF = "ATKDEFMode";
@@ -23,9 +23,10 @@ namespace _4RTools.Model
         public int switchDelay { get; set; } = 50;
         public Key keySpammer { get; set; }
         public bool keySpammerWithClick { get; set; } = true;
-        public Dictionary<string,Key> defKeys { get; set; } = new Dictionary<string,Key>();
-        public Dictionary<string,Key> atkKeys { get; set; } = new Dictionary<string, Key>();
-        // ReSharper disable once NotAccessedField.Local — kept for potential future use
+        public Dictionary<string, Key> defKeys { get; set; } = new Dictionary<string, Key>();
+        public Dictionary<string, Key> atkKeys { get; set; } = new Dictionary<string, Key>();
+
+        // ReSharper disable once NotAccessedField.Local - kept for potential future use
 #pragma warning disable CS0414
         private int PX_MOV = Constants.MOUSE_DIAGONAL_MOVIMENTATION_PIXELS_AHK;
 #pragma warning restore CS0414
@@ -48,6 +49,7 @@ namespace _4RTools.Model
 
         public void Start()
         {
+            Stop();
             Client roClient = ClientSingleton.GetClient();
             if (roClient != null)
             {
@@ -58,43 +60,46 @@ namespace _4RTools.Model
 
         private int AHKThreadExecution(Client roClient)
         {
+            if (this.keySpammer == Key.None)
+            {
+                return 0;
+            }
+
             Keys thisk = toKeys(keySpammer);
-            if (this.keySpammer != Key.None && IsWpfKeyDown(this.keySpammer))
+            if (ProfileSingleton.GetCurrent().AHK.IsMainKeyClaimedByActiveSlot(thisk))
+            {
+                return 0;
+            }
+
+            if (IsWpfKeyDown(this.keySpammer))
             {
                 InputAutomationStopProtocol.EnterExclusiveAutomation();
                 try
                 {
                     foreach (Key key in atkKeys.Values)
                     {
-                        roClient.input.SendKey((int)toKeys(key), true); //Equip ATK Items
+                        roClient.input.SendKey((int)toKeys(key), true);
                         Thread.Sleep(this.switchDelay);
                     }
 
-                    if (this.keySpammerWithClick)
+                    while (IsThreadRunning() && IsWpfKeyDown(this.keySpammer))
                     {
-                        while (IsWpfKeyDown(keySpammer))
+                        roClient.input.SendKey((int)thisk, true);
+                        if (this.keySpammerWithClick)
                         {
-                            roClient.input.SendKey((int)thisk, true);
                             Native.POINT p;
                             Native.GetCursorPos(out p);
                             IntPtr hWnd = roClient.processManager.GetGameWindowOrNull();
                             if (hWnd != IntPtr.Zero) Native.ScreenToClient(hWnd, ref p);
-                            roClient.input.SendClick(p.X, p.Y);
-                            Thread.Sleep(this.ahkDelay);
+                            roClient.input.ClickAtExact(p.X, p.Y);
                         }
-                    }
-                    else
-                    {
-                        while (IsWpfKeyDown(keySpammer))
-                        {
-                            roClient.input.SendKey((int)thisk, true);
-                            Thread.Sleep(this.ahkDelay);
-                        }
+
+                        Thread.Sleep(this.ahkDelay);
                     }
 
                     foreach (Key key in defKeys.Values)
                     {
-                        roClient.input.SendKey((int)toKeys(key), true); //Equip DEF Items
+                        roClient.input.SendKey((int)toKeys(key), true);
                         Thread.Sleep(this.switchDelay);
                     }
                 }
@@ -103,10 +108,11 @@ namespace _4RTools.Model
                     InputAutomationStopProtocol.LeaveExclusiveAutomation();
                 }
             }
+
             return 0;
         }
 
-        public void AddSwitchItem(string dictKey,Key k, ATKDEFEnum type)
+        public void AddSwitchItem(string dictKey, Key k, ATKDEFEnum type)
         {
             Dictionary<string, Key> copy = type == ATKDEFEnum.DEF ? this.defKeys : this.atkKeys;
 
@@ -115,11 +121,10 @@ namespace _4RTools.Model
                 RemoveSwitchEntry(dictKey, type);
             }
 
-            if(k != Key.None)
+            if (k != Key.None)
             {
                 copy.Add(dictKey, k);
             }
-            
         }
 
         public void RemoveSwitchEntry(string dictKey, ATKDEFEnum type)
@@ -131,6 +136,11 @@ namespace _4RTools.Model
         private Keys toKeys(Key k)
         {
             return (Keys)Enum.Parse(typeof(Keys), k.ToString());
+        }
+
+        private bool IsThreadRunning()
+        {
+            return this.thread != null && this.thread.IsRunning;
         }
 
         public void Stop()
