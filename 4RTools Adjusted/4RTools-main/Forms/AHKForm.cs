@@ -20,6 +20,7 @@ namespace _4RTools.Forms
         private RadioButton rbAhkSpeedBoost;
         private CheckBox chkMouseFlickGlobal;
         private CheckBox chkNoShiftGlobal;
+        private System.Windows.Forms.Timer stepIndicatorTimer;
 
         public AHKForm(Subject subject)
         {
@@ -28,6 +29,11 @@ namespace _4RTools.Forms
             InitializeSlotRows();
             subject.Attach(this);
             UpdateUI();
+
+            this.stepIndicatorTimer = new System.Windows.Forms.Timer();
+            this.stepIndicatorTimer.Interval = 200;
+            this.stepIndicatorTimer.Tick += StepIndicatorTimer_Tick;
+            this.stepIndicatorTimer.Start();
         }
 
         private void InitializeClassicSpammerOptions()
@@ -153,6 +159,36 @@ namespace _4RTools.Forms
             }
         }
 
+        private void StepIndicatorTimer_Tick(object sender, EventArgs e)
+        {
+            AHK ahk = ProfileSingleton.GetCurrent()?.AHK;
+            if (ahk == null)
+            {
+                return;
+            }
+
+            ahk.EnsureSlotsConfigured();
+            for (int i = 0; i < slotRows.Count && i < ahk.Slots.Count; i++)
+            {
+                AhkSlotConfig slot = ahk.Slots[i];
+                Label stepLabel = slotRows[i].StepLabel;
+                if (stepLabel == null)
+                {
+                    continue;
+                }
+
+                int total = slot.GetResolvedSkillBindings().Count;
+                if (!slot.Enabled || total == 0)
+                {
+                    stepLabel.Text = "";
+                    continue;
+                }
+
+                int step = (slot.currentStep % total) + 1;
+                stepLabel.Text = $"[{step}/{total}]";
+            }
+        }
+
         private void InitializeSlotRows()
         {
             AddHeaderRow();
@@ -164,22 +200,32 @@ namespace _4RTools.Forms
                 Panel rowPanel = new Panel
                 {
                     Location = new Point(0, 24 + (i * 28)),
-                    Size = new Size(510, 26),
+                    Size = new Size(536, 26),
                     Margin = new Padding(0)
                 };
 
                 Label slotLabel = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(8, 5),
-                    Size = new Size(42, 18),
+                    Location = new Point(4, 5),
+                    Size = new Size(28, 18),
                     Text = $"S{i + 1:00}"
+                };
+
+                Label stepLabel = new Label
+                {
+                    AutoSize = false,
+                    Location = new Point(30, 5),
+                    Size = new Size(38, 18),
+                    Text = "",
+                    ForeColor = Color.DarkBlue,
+                    Font = new Font(this.Font.FontFamily, 7f, FontStyle.Bold)
                 };
 
                 TextBox bindingTextBox = new TextBox
                 {
-                    Location = new Point(56, 2),
-                    Size = new Size(248, 20),
+                    Location = new Point(68, 2),
+                    Size = new Size(236, 20),
                     ReadOnly = true,
                     TabStop = false
                 };
@@ -212,6 +258,7 @@ namespace _4RTools.Forms
                 clearButton.Click += this.ClearButton_Click;
 
                 rowPanel.Controls.Add(slotLabel);
+                rowPanel.Controls.Add(stepLabel);
                 rowPanel.Controls.Add(bindingTextBox);
                 rowPanel.Controls.Add(bindButton);
                 rowPanel.Controls.Add(enabledCheckBox);
@@ -221,7 +268,8 @@ namespace _4RTools.Forms
                 this.slotRows.Add(new SlotRowControls
                 {
                     BindingTextBox = bindingTextBox,
-                    EnabledCheckBox = enabledCheckBox
+                    EnabledCheckBox = enabledCheckBox,
+                    StepLabel = stepLabel
                 });
             }
         }
@@ -658,6 +706,7 @@ namespace _4RTools.Forms
         {
             public TextBox BindingTextBox { get; set; }
             public CheckBox EnabledCheckBox { get; set; }
+            public Label StepLabel { get; set; }
         }
 
         private sealed class BindingCaptureDialog : Form

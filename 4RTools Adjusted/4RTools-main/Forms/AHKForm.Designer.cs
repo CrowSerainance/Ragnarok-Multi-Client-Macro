@@ -13,9 +13,18 @@ namespace _4RTools.Forms
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                if (this.stepIndicatorTimer != null)
+                {
+                    this.stepIndicatorTimer.Stop();
+                    this.stepIndicatorTimer.Dispose();
+                }
+
+                if (components != null)
+                {
+                    components.Dispose();
+                }
             }
             base.Dispose(disposing);
         }
@@ -58,7 +67,7 @@ namespace _4RTools.Forms
             this.lblBindingHint.Name = "lblBindingHint";
             this.lblBindingHint.Size = new System.Drawing.Size(518, 26);
             this.lblBindingHint.TabIndex = 1;
-            this.lblBindingHint.Text = "Per slot: set trigger + keys in order. One press runs the whole sequence once (stock SendKey/Click path). Release the trigger before pressing again to repeat.";
+            this.lblBindingHint.Text = "Per slot: set trigger + keys in order. Each press fires the next key in the cycle. Release the trigger before pressing again to advance.";
             //
             // AHKForm
             //
