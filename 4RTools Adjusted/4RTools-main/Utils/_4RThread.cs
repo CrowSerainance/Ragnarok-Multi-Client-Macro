@@ -24,7 +24,7 @@ namespace _4RTools.Utils
                     {
                         toRun(0);
                     }catch(Exception ex) {
-                        Console.WriteLine("[4RThread Exception] Error while Executing Thread Method ==== "+ex.Message);
+                        Console.WriteLine($"[4RThread Exception] {ex}");
                     }
                     finally
                     {

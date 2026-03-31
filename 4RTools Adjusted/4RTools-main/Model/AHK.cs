@@ -100,7 +100,7 @@ namespace _4RTools.Model
 
         /// <summary>Cycles through skill keys one-per-press so the game's aftercast delay is respected.</summary>
         [JsonIgnore]
-        public int currentStep { get; set; } = 0;
+        public volatile int currentStep;
 
         [JsonIgnore]
         public bool HasBinding =>
@@ -479,6 +479,8 @@ namespace _4RTools.Model
         /// <summary>Rising-edge detection: tracks which slot indices have their trigger held.</summary>
         [JsonIgnore]
         private readonly HashSet<int> _slotTriggerDown = new HashSet<int>();
+        [JsonIgnore]
+        private readonly object _slotTriggerLock = new object();
 
         /// <summary>0 = idle, 1 = worker running (Interlocked; avoids torn reads between poll thread and threadpool).</summary>
         [JsonIgnore]
@@ -667,7 +669,7 @@ namespace _4RTools.Model
                 // Stale Task.Run workers can outlive the poll thread; wait before resetting state.
                 WaitForSlotWorkersIdle(800);
 
-                this._slotTriggerDown.Clear();
+                lock (_slotTriggerLock) { _slotTriggerDown.Clear(); }
                 for (int i = 0; i < SLOT_COUNT; i++)
                 {
                     Interlocked.Exchange(ref this._slotBusy[i], 0);
@@ -745,19 +747,18 @@ namespace _4RTools.Model
                 AhkSlotConfig slot = this.Slots[i];
                 if (slot == null)
                 {
-                    if (this._slotTriggerDown.Contains(i))
+                    lock (_slotTriggerLock)
                     {
-                        this._slotTriggerDown.Remove(i);
+                        _slotTriggerDown.Remove(i);
                     }
-
                     continue;
                 }
 
                 bool isPressed = slot.HasBinding && IsSlotPressed(slot);
 
-                if (!isPressed && this._slotTriggerDown.Contains(i))
+                if (!isPressed)
                 {
-                    this._slotTriggerDown.Remove(i);
+                    lock (_slotTriggerLock) { _slotTriggerDown.Remove(i); }
                     continue;
                 }
 
@@ -767,45 +768,54 @@ namespace _4RTools.Model
                 }
 
                 string triggerSignature = BuildTriggerSignature(slot);
-                if (isPressed && !string.IsNullOrEmpty(triggerSignature) &&
+                if (!string.IsNullOrEmpty(triggerSignature) &&
                     !handledTriggerSignatures.Add(triggerSignature))
                 {
-                    this._slotTriggerDown.Add(i);
+                    lock (_slotTriggerLock) { _slotTriggerDown.Add(i); }
                     continue;
                 }
 
-                if (isPressed && !this._slotTriggerDown.Contains(i))
+                bool shouldFire = false;
+                lock (_slotTriggerLock)
                 {
-                    if (Interlocked.CompareExchange(ref this._slotBusy[i], 1, 0) == 0)
+                    if (!_slotTriggerDown.Contains(i))
                     {
-                        this._slotTriggerDown.Add(i);
-                        int idx = i;
-                        AhkSlotConfig capturedSlot = slot;
-                        Client capturedClient = roClient;
-                        Task.Run(() =>
+                        if (Interlocked.CompareExchange(ref this._slotBusy[i], 1, 0) == 0)
                         {
+                            _slotTriggerDown.Add(i);
+                            shouldFire = true;
+                        }
+                    }
+                }
+
+                if (shouldFire)
+                {
+                    int idx = i;
+                    AhkSlotConfig capturedSlot = slot;
+                    Client capturedClient = roClient;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            InputAutomationStopProtocol.EnterExclusiveAutomation();
                             try
                             {
-                                InputAutomationStopProtocol.EnterExclusiveAutomation();
-                                try
-                                {
-                                    FireRegisteredKeyChain(capturedClient, capturedSlot);
-                                }
-                                finally
-                                {
-                                    InputAutomationStopProtocol.LeaveExclusiveAutomation();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"[AHK] Slot worker error: {ex.Message}");
+                                FireRegisteredKeyChain(capturedClient, capturedSlot);
                             }
                             finally
                             {
-                                Interlocked.Exchange(ref this._slotBusy[idx], 0);
+                                InputAutomationStopProtocol.LeaveExclusiveAutomation();
                             }
-                        });
-                    }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[AHK] Slot worker error: {ex.Message}");
+                        }
+                        finally
+                        {
+                            Interlocked.Exchange(ref this._slotBusy[idx], 0);
+                        }
+                    });
                 }
             }
 
@@ -826,7 +836,6 @@ namespace _4RTools.Model
                 return;
             }
 
-            slot.EnsureSlotModelConsistent();
             List<AhkSkillBinding> resolved = slot.GetResolvedSkillBindings();
             if (resolved.Count == 0)
             {
@@ -1058,7 +1067,7 @@ namespace _4RTools.Model
         {
             this._stopped = true;
             _4RThread.Stop(this.thread);
-            this._slotTriggerDown.Clear();
+            lock (_slotTriggerLock) { _slotTriggerDown.Clear(); }
             for (int i = 0; i < SLOT_COUNT; i++)
             {
                 Interlocked.Exchange(ref this._slotBusy[i], 0);

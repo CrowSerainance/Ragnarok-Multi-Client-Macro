@@ -62,7 +62,7 @@ namespace _4RTools.Forms
                     }
 
                     Control[] c = group.Controls.Find($"{cbName}click", true); // Clicks
-                    if (d.Length > 0)
+                    if (c.Length > 0)
                     {
                         CheckBox checkInput = (CheckBox)c[0];
                         checkInput.Checked = chainConfig.macroEntries[cbName].hasClick;

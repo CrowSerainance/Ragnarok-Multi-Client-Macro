@@ -19,7 +19,13 @@ public static class InputAutomationStopProtocol
 
     public static void LeaveExclusiveAutomation()
     {
-        Interlocked.Decrement(ref _exclusiveDepth);
+        // Only decrement if above zero — prevents underflow from mismatched Enter/Leave pairs.
+        int current;
+        do
+        {
+            current = Volatile.Read(ref _exclusiveDepth);
+            if (current <= 0) return;
+        } while (Interlocked.CompareExchange(ref _exclusiveDepth, current - 1, current) != current);
     }
 
     /// <summary>True while any exclusive lane (skill spam, macro fire, ATK/DEF) holds the protocol.</summary>

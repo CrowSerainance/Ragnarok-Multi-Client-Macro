@@ -35,7 +35,7 @@ namespace _4RTools.Model
         public bool infinityLoopOn { get; set; } = false;
 
         [JsonIgnore]
-        public int currentStep { get; set; } = 0;
+        public volatile int currentStep;
 
         public ChainConfig() { }
 
@@ -94,6 +94,7 @@ namespace _4RTools.Model
         /// (rising-edge detection) instead of repeating every poll cycle.
         /// </summary>
         private readonly HashSet<Key> _triggersDown = new HashSet<Key>();
+        private readonly object _triggersLock = new object();
 
         public Macro(string macroname, int macroLanes)
         {
@@ -141,24 +142,32 @@ namespace _4RTools.Model
                 }
 
                 bool isDown = IsWpfKeyDown(chainConfig.trigger);
+                bool shouldFire = false;
 
-                if (isDown && !_triggersDown.Contains(chainConfig.trigger))
+                lock (_triggersLock)
                 {
-                    // Rising edge: key just pressed — fire the chain once
-                    _triggersDown.Add(chainConfig.trigger);
+                    if (isDown && !_triggersDown.Contains(chainConfig.trigger))
+                    {
+                        // Rising edge: key just pressed — fire the chain once
+                        _triggersDown.Add(chainConfig.trigger);
+                        shouldFire = true;
+                    }
+                    else if (isDown && _triggersDown.Contains(chainConfig.trigger) && chainConfig.infinityLoop)
+                    {
+                        // Key still held and infinity loop enabled — repeat the chain
+                        shouldFire = true;
+                    }
+                    else if (!isDown)
+                    {
+                        // Key released — reset so next press fires again
+                        _triggersDown.Remove(chainConfig.trigger);
+                    }
+                }
+
+                if (shouldFire)
+                {
                     anyTriggered = true;
                     ExecuteMacroChain(roClient, chainConfig);
-                }
-                else if (isDown && _triggersDown.Contains(chainConfig.trigger) && chainConfig.infinityLoop)
-                {
-                    // Key still held and infinity loop enabled — repeat the chain
-                    anyTriggered = true;
-                    ExecuteMacroChain(roClient, chainConfig);
-                }
-                else if (!isDown)
-                {
-                    // Key released — reset so next press fires again
-                    _triggersDown.Remove(chainConfig.trigger);
                 }
             }
 
@@ -172,11 +181,6 @@ namespace _4RTools.Model
 
         private void ExecuteMacroChain(Client roClient, ChainConfig chainConfig)
         {
-            if (InputAutomationStopProtocol.ShouldYieldBuffStyleInput())
-            {
-                return;
-            }
-
             InputAutomationStopProtocol.EnterExclusiveAutomation();
             try
             {
@@ -270,7 +274,7 @@ namespace _4RTools.Model
         public void Stop()
         {
             _4RThread.Stop(this.thread);
-            _triggersDown.Clear();
+            lock (_triggersLock) { _triggersDown.Clear(); }
         }
     }
 }
