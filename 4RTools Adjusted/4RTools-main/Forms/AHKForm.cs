@@ -184,8 +184,17 @@ namespace _4RTools.Forms
                     continue;
                 }
 
-                int step = (slot.currentStep % total) + 1;
-                stepLabel.Text = $"[{step}/{total}]";
+                int fired = slot.lastFiredStep;
+                if (fired <= 0)
+                {
+                    stepLabel.Text = $"[–/{total}]"; // hasn't fired yet
+                }
+                else
+                {
+                    // Clamp in case total changed after last fire
+                    int display = fired > total ? total : fired;
+                    stepLabel.Text = $"[{display}/{total}]";
+                }
             }
         }
 

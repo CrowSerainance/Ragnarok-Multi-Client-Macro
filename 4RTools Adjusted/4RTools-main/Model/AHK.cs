@@ -102,6 +102,10 @@ namespace _4RTools.Model
         [JsonIgnore]
         public volatile int currentStep;
 
+        /// <summary>1-based index of the last key that was actually fired. Used by the UI step indicator.</summary>
+        [JsonIgnore]
+        public volatile int lastFiredStep;
+
         [JsonIgnore]
         public bool HasBinding =>
             Enabled &&
@@ -674,6 +678,16 @@ namespace _4RTools.Model
                 {
                     Interlocked.Exchange(ref this._slotBusy[i], 0);
                 }
+
+                // Reset every slot's step counter so the cycle always starts from key 1.
+                foreach (var slot in this.Slots)
+                {
+                    if (slot != null)
+                    {
+                        slot.currentStep = 0;
+                        slot.lastFiredStep = 0;
+                    }
+                }
             }
             finally
             {
@@ -823,11 +837,10 @@ namespace _4RTools.Model
         }
 
         /// <summary>
-        /// One trigger press → fire the NEXT single key in the cycle (step-by-step).
-        /// Advances the step index so the next press fires the following key.
-        /// This respects RO's aftercast delay / animation lock — the game can only
-        /// process one skill action per human key-press window anyway, so blasting
-        /// the entire list in 60 ms gaps just wastes every key after the first.
+        /// One trigger press → fire the NEXT single key in the cycle, but ONLY if the
+        /// character is idle (reads motion state from client memory). If the character
+        /// is busy (casting, aftercast, attacking), the step does NOT advance — the
+        /// same key will retry on the next press so no skill gets skipped.
         /// </summary>
         private void FireRegisteredKeyChain(Client roClient, AhkSlotConfig slot)
         {
@@ -848,13 +861,21 @@ namespace _4RTools.Model
                 return;
             }
 
+            // Don't fire if character is busy (casting, aftercast, attacking).
+            // Step does NOT advance — same key retries on next press.
+            if (!live.IsPlayerIdle())
+            {
+                return;
+            }
+
             // Wrap around if past the end of the list
             if (slot.currentStep >= resolved.Count)
             {
                 slot.currentStep = 0;
             }
 
-            AhkSkillBinding key = resolved[slot.currentStep];
+            int fireIndex = slot.currentStep;
+            AhkSkillBinding key = resolved[fireIndex];
             int vk = (int)key.ParseKey();
 
             if (vk != (int)FormsKeys.None)
@@ -863,6 +884,8 @@ namespace _4RTools.Model
                 try
                 {
                     FireVanillaSkillStep(live, slot, key, vk, speedBoost);
+                    slot.lastFiredStep = fireIndex + 1; // 1-based for UI display
+                    Debug.WriteLine($"[AHK] Slot {slot.SlotId} fired step {fireIndex + 1}/{resolved.Count}");
                 }
                 catch (Exception ex)
                 {

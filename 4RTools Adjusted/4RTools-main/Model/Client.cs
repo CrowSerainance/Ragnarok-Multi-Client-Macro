@@ -208,6 +208,48 @@ namespace _4RTools.Model
             return ReadMemory(this.statusBufferAddress + effectStatusIndex * 4);
         }
 
+        /// <summary>
+        /// Reads the player entity's motion/action state from memory.
+        /// Resolves the pointer chain: [[WorldBaseIntermed] + WorldBaseOffset] + PlayerBaseOffset → entity + PlayerStateOffset.
+        /// Returns the raw state value, or uint.MaxValue if the chain can't be resolved.
+        /// Common RO client values: 0 = idle/standing, 1 = walking, 2 = sitting, 3+ = busy (attacking/casting/etc).
+        /// </summary>
+        public uint ReadPlayerMotionState()
+        {
+            if (memory == null || processManager == null || !processManager.IsAttached)
+                return uint.MaxValue;
+
+            try
+            {
+                var cfg = new AddressConfig();
+                IntPtr stateAddr = memory.ResolvePointerChain(
+                    (IntPtr)cfg.WorldBaseIntermed,
+                    new int[] { 0, cfg.WorldBaseOffset, cfg.PlayerBaseOffset },
+                    cfg.PlayerStateOffset);
+
+                if (stateAddr == IntPtr.Zero)
+                    return uint.MaxValue;
+
+                return memory.ReadUInt32(stateAddr);
+            }
+            catch
+            {
+                return uint.MaxValue;
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the character is in a state that can accept skill input (idle or sitting).
+        /// Returns true if memory reading fails (fail-open so the spammer doesn't get stuck).
+        /// </summary>
+        public bool IsPlayerIdle()
+        {
+            uint state = ReadPlayerMotionState();
+            if (state == uint.MaxValue)
+                return true; // can't read → don't block
+            return state == 0 || state == 2; // 0 = idle/standing, 2 = sitting
+        }
+
         public Client GetClientByProcess(string processName)
         {
             foreach(Client c in ClientListSingleton.GetAll())
