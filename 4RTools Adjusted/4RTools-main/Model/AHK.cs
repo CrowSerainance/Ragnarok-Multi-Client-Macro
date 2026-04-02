@@ -480,15 +480,9 @@ namespace _4RTools.Model
 
         private _4RThread thread;
 
-        /// <summary>Rising-edge detection: tracks which slot indices have their trigger held.</summary>
+        /// <summary>Per-slot: tracks whether the trigger was down on the previous poll (rising-edge detection).</summary>
         [JsonIgnore]
-        private readonly HashSet<int> _slotTriggerDown = new HashSet<int>();
-        [JsonIgnore]
-        private readonly object _slotTriggerLock = new object();
-
-        /// <summary>0 = idle, 1 = worker running (Interlocked; avoids torn reads between poll thread and threadpool).</summary>
-        [JsonIgnore]
-        private readonly int[] _slotBusy = new int[SLOT_COUNT];
+        private readonly bool[] _wasDown = new bool[SLOT_COUNT];
 
         /// <summary>Set when AHK is stopped so in-flight runs bail out.</summary>
         [JsonIgnore]
@@ -670,13 +664,10 @@ namespace _4RTools.Model
                     _4RThread.Stop(this.thread);
                 }
 
-                // Stale Task.Run workers can outlive the poll thread; wait before resetting state.
-                WaitForSlotWorkersIdle(800);
-
-                lock (_slotTriggerLock) { _slotTriggerDown.Clear(); }
+                // Reset all per-slot state.
                 for (int i = 0; i < SLOT_COUNT; i++)
                 {
-                    Interlocked.Exchange(ref this._slotBusy[i], 0);
+                    _wasDown[i] = false;
                 }
 
                 // Reset every slot's step counter so the cycle always starts from key 1.
@@ -698,31 +689,6 @@ namespace _4RTools.Model
             _4RThread.Start(this.thread);
         }
 
-        /// <summary>Waits until no slot worker holds the busy flag (poll thread is already stopped).</summary>
-        private void WaitForSlotWorkersIdle(int timeoutMs)
-        {
-            Stopwatch sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < timeoutMs)
-            {
-                bool anyBusy = false;
-                for (int i = 0; i < SLOT_COUNT; i++)
-                {
-                    if (Volatile.Read(ref this._slotBusy[i]) != 0)
-                    {
-                        anyBusy = true;
-                        break;
-                    }
-                }
-
-                if (!anyBusy)
-                {
-                    return;
-                }
-
-                Thread.Sleep(5);
-            }
-        }
-
         /// <summary>Sleep in small chunks so <see cref="_stopped"/> can abort waits promptly.</summary>
         private void SleepWhileRunning(int totalMs)
         {
@@ -736,9 +702,11 @@ namespace _4RTools.Model
         }
 
         /// <summary>
-        /// Poll callback (every 5ms). Rising edge → run the full registered hotkey chain once (with pauses).
-        /// Holding the trigger does not restart the chain; release and press again to repeat.
-        /// Duplicate trigger signatures: only the first slot in index order runs; others still track held state so release clears.
+        /// <summary>
+        /// Poll callback (every 5ms). Pure rising-edge trigger detection.
+        /// Each press of the trigger fires the next key in the cycle and advances the step.
+        /// Release the trigger and press again to fire the next key.
+        /// No hold-down logic, no retry, no idle gating — one press = one fire = one advance.
         /// </summary>
         private int AHKThreadExecution()
         {
@@ -750,9 +718,8 @@ namespace _4RTools.Model
 
             HashSet<string> handledTriggerSignatures = new HashSet<string>(StringComparer.Ordinal);
 
-            for (int i = 0; i < this.Slots.Count; i++)
+            for (int i = 0; i < this.Slots.Count && i < SLOT_COUNT; i++)
             {
-                // Stock 4RTools AHK ignores skill spam while Alt is held (UI / keybind safety).
                 if (IsKeyDown(FormsKeys.LMenu) || IsKeyDown(FormsKeys.RMenu))
                 {
                     continue;
@@ -761,10 +728,7 @@ namespace _4RTools.Model
                 AhkSlotConfig slot = this.Slots[i];
                 if (slot == null)
                 {
-                    lock (_slotTriggerLock)
-                    {
-                        _slotTriggerDown.Remove(i);
-                    }
+                    _wasDown[i] = false;
                     continue;
                 }
 
@@ -772,77 +736,38 @@ namespace _4RTools.Model
 
                 if (!isPressed)
                 {
-                    lock (_slotTriggerLock) { _slotTriggerDown.Remove(i); }
+                    _wasDown[i] = false;
                     continue;
                 }
 
-                if (!slot.HasBinding)
+                // Rising edge: only fire on the transition from UP → DOWN.
+                if (_wasDown[i])
                 {
-                    continue;
+                    continue; // key is still held from a previous press — ignore
                 }
 
+                _wasDown[i] = true; // mark as down so we don't fire again until released
+
+                // Deduplicate: two slots with same trigger → only first fires.
                 string triggerSignature = BuildTriggerSignature(slot);
                 if (!string.IsNullOrEmpty(triggerSignature) &&
                     !handledTriggerSignatures.Add(triggerSignature))
                 {
-                    lock (_slotTriggerLock) { _slotTriggerDown.Add(i); }
                     continue;
                 }
 
-                bool shouldFire = false;
-                lock (_slotTriggerLock)
-                {
-                    if (!_slotTriggerDown.Contains(i))
-                    {
-                        if (Interlocked.CompareExchange(ref this._slotBusy[i], 1, 0) == 0)
-                        {
-                            _slotTriggerDown.Add(i);
-                            shouldFire = true;
-                        }
-                    }
-                }
-
-                if (shouldFire)
-                {
-                    int idx = i;
-                    AhkSlotConfig capturedSlot = slot;
-                    Client capturedClient = roClient;
-                    Task.Run(() =>
-                    {
-                        try
-                        {
-                            InputAutomationStopProtocol.EnterExclusiveAutomation();
-                            try
-                            {
-                                FireRegisteredKeyChain(capturedClient, capturedSlot);
-                            }
-                            finally
-                            {
-                                InputAutomationStopProtocol.LeaveExclusiveAutomation();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[AHK] Slot worker error: {ex.Message}");
-                        }
-                        finally
-                        {
-                            Interlocked.Exchange(ref this._slotBusy[idx], 0);
-                        }
-                    });
-                }
+                // Fire the current step key and advance.
+                FireCurrentStepKey(roClient, slot);
             }
 
             return 0;
         }
 
         /// <summary>
-        /// One trigger press → fire the NEXT single key in the cycle, but ONLY if the
-        /// character is idle (reads motion state from client memory). If the character
-        /// is busy (casting, aftercast, attacking), the step does NOT advance — the
-        /// same key will retry on the next press so no skill gets skipped.
+        /// Fires the current key in the slot's cycle and advances the step counter.
+        /// Called once per trigger press. Always fires and always advances — no gating.
         /// </summary>
-        private void FireRegisteredKeyChain(Client roClient, AhkSlotConfig slot)
+        private void FireCurrentStepKey(Client roClient, AhkSlotConfig slot)
         {
             if (this._stopped)
             {
@@ -861,14 +786,7 @@ namespace _4RTools.Model
                 return;
             }
 
-            // Don't fire if character is busy (casting, aftercast, attacking).
-            // Step does NOT advance — same key retries on next press.
-            if (!live.IsPlayerIdle())
-            {
-                return;
-            }
-
-            // Wrap around if past the end of the list
+            // Wrap around if past the end of the list.
             if (slot.currentStep >= resolved.Count)
             {
                 slot.currentStep = 0;
@@ -881,19 +799,25 @@ namespace _4RTools.Model
             if (vk != (int)FormsKeys.None)
             {
                 bool speedBoost = string.Equals(this.ahkMode, SPEED_BOOST, StringComparison.Ordinal);
+
+                InputAutomationStopProtocol.EnterExclusiveAutomation();
                 try
                 {
                     FireVanillaSkillStep(live, slot, key, vk, speedBoost);
-                    slot.lastFiredStep = fireIndex + 1; // 1-based for UI display
-                    Debug.WriteLine($"[AHK] Slot {slot.SlotId} fired step {fireIndex + 1}/{resolved.Count}");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[AHK] Slot {slot.SlotId} key send: {ex.Message}");
+                    Debug.WriteLine($"[AHK] Slot {slot.SlotId} key send error: {ex.Message}");
+                }
+                finally
+                {
+                    InputAutomationStopProtocol.LeaveExclusiveAutomation();
                 }
             }
 
+            slot.lastFiredStep = fireIndex + 1;
             slot.currentStep++;
+            Debug.WriteLine($"[AHK] Slot {slot.SlotId} fired step {fireIndex + 1}/{resolved.Count} (key={key?.Key})");
         }
 
         /// <summary>Matches stock <c>FireOnceWithClick</c> / <c>FireOnceSpeedBoost</c> / <c>FireOnceKeyOnly</c> behavior.</summary>
@@ -1090,10 +1014,9 @@ namespace _4RTools.Model
         {
             this._stopped = true;
             _4RThread.Stop(this.thread);
-            lock (_slotTriggerLock) { _slotTriggerDown.Clear(); }
             for (int i = 0; i < SLOT_COUNT; i++)
             {
-                Interlocked.Exchange(ref this._slotBusy[i], 0);
+                _wasDown[i] = false;
             }
         }
 
