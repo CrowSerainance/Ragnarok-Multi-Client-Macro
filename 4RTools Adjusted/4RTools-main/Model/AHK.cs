@@ -919,9 +919,35 @@ namespace _4RTools.Model
             return expectedDown == isDown;
         }
 
+        /// <summary>Bidirectional numpad↔nav key map. NumLock OFF causes Windows to report numpad VKs as nav VKs.</summary>
+        private static readonly Dictionary<FormsKeys, FormsKeys> NumpadToNavMap = new Dictionary<FormsKeys, FormsKeys>
+        {
+            { FormsKeys.NumPad0, FormsKeys.Insert },
+            { FormsKeys.NumPad1, FormsKeys.End },
+            { FormsKeys.NumPad2, FormsKeys.Down },
+            { FormsKeys.NumPad3, FormsKeys.Next },
+            { FormsKeys.NumPad4, FormsKeys.Left },
+            { FormsKeys.NumPad5, FormsKeys.Clear },
+            { FormsKeys.NumPad6, FormsKeys.Right },
+            { FormsKeys.NumPad7, FormsKeys.Home },
+            { FormsKeys.NumPad8, FormsKeys.Up },
+            { FormsKeys.NumPad9, FormsKeys.Prior },
+        };
+        private static readonly Dictionary<FormsKeys, FormsKeys> NavToNumpadMap =
+            NumpadToNavMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
         private static bool IsKeyDown(FormsKeys key)
         {
-            return (Native.GetAsyncKeyState((int)key) & 0x8000) != 0;
+            if ((Native.GetAsyncKeyState((int)key) & 0x8000) != 0)
+                return true;
+
+            // NumLock off: numpad keys report as nav keys (and vice versa).
+            // Check the paired VK so detection works regardless of NumLock state.
+            FormsKeys alt;
+            if (NumpadToNavMap.TryGetValue(key, out alt) || NavToNumpadMap.TryGetValue(key, out alt))
+                return (Native.GetAsyncKeyState((int)alt) & 0x8000) != 0;
+
+            return false;
         }
 
         private void MigrateLegacyEntriesIfNeeded()

@@ -1064,6 +1064,8 @@ namespace _4RTools.Forms
                 base.OnKeyDown(e);
 
                 FormsKeys keyCode = e.KeyCode & FormsKeys.KeyCode;
+                keyCode = ResolveNumpadFromNav(keyCode);
+
                 if (keyCode == FormsKeys.Escape)
                 {
                     if (this.listenMode != ListenMode.None)
@@ -1185,6 +1187,33 @@ namespace _4RTools.Forms
         }
 
         /// <summary>Sample physical modifier state via GetAsyncKeyState (matches runtime trigger detection).</summary>
+        /// <summary>
+        /// When NumLock is off, Windows reports numpad presses as nav VK codes.
+        /// Detects that and returns the numpad VK instead so bindings store "NumPad1" not "End".
+        /// </summary>
+        private static FormsKeys ResolveNumpadFromNav(FormsKeys keyCode)
+        {
+            // Only remap when NumLock is off — that's when the OS translates numpad→nav.
+            bool numLockOn = (Native.GetKeyState(0x90) & 0x0001) != 0;
+            if (numLockOn)
+                return keyCode;
+
+            switch (keyCode)
+            {
+                case FormsKeys.Insert: return FormsKeys.NumPad0;
+                case FormsKeys.End:    return FormsKeys.NumPad1;
+                case FormsKeys.Down:   return FormsKeys.NumPad2;
+                case FormsKeys.Next:   return FormsKeys.NumPad3;
+                case FormsKeys.Left:   return FormsKeys.NumPad4;
+                case FormsKeys.Clear:  return FormsKeys.NumPad5;
+                case FormsKeys.Right:  return FormsKeys.NumPad6;
+                case FormsKeys.Home:   return FormsKeys.NumPad7;
+                case FormsKeys.Up:     return FormsKeys.NumPad8;
+                case FormsKeys.Prior:  return FormsKeys.NumPad9;
+                default:               return keyCode;
+            }
+        }
+
         private static bool IsPhysicalKeyDown(FormsKeys key)
         {
             return (Native.GetAsyncKeyState((int)key) & 0x8000) != 0;

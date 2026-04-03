@@ -380,6 +380,9 @@ public static class Native
     public static extern short GetAsyncKeyState(int vKey);
 
     [DllImport("user32.dll")]
+    public static extern short GetKeyState(int nVirtKey);
+
+    [DllImport("user32.dll")]
     public static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
 
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
