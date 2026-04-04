@@ -1188,16 +1188,15 @@ namespace _4RTools.Forms
 
         /// <summary>Sample physical modifier state via GetAsyncKeyState (matches runtime trigger detection).</summary>
         /// <summary>
-        /// When NumLock is off, Windows reports numpad presses as nav VK codes.
-        /// Detects that and returns the numpad VK instead so bindings store "NumPad1" not "End".
+        /// Razer Synapse (and similar mouse software) maps side buttons to "Num 1" etc.
+        /// but injects the VK directly (Insert/End/Home/etc.) rather than a real numpad
+        /// scancode — so the NumLock state is irrelevant. Always remap nav→numpad here
+        /// so the binding stores the user's intended numpad key.
+        /// Detection (IsKeyDown in AHK.cs) checks both VKs regardless, so even if the
+        /// user truly intended a nav key, it still detects correctly.
         /// </summary>
         private static FormsKeys ResolveNumpadFromNav(FormsKeys keyCode)
         {
-            // Only remap when NumLock is off — that's when the OS translates numpad→nav.
-            bool numLockOn = (Native.GetKeyState(0x90) & 0x0001) != 0;
-            if (numLockOn)
-                return keyCode;
-
             switch (keyCode)
             {
                 case FormsKeys.Insert: return FormsKeys.NumPad0;
