@@ -74,12 +74,41 @@ namespace _4RTools.Forms
             subject.Notify(new Utils.Message(Utils.MessageCode.PROCESS_CHANGED, null));
         }
 
+        private static readonly string LastProfileFile = System.IO.Path.Combine(AppConfig.ProfileFolder, "_last_profile.txt");
+
         private void Container_Load(object sender, EventArgs e)
         {
             ProfileSingleton.Create("Default");
             this.refreshProcessList();
             this.refreshProfileList();
-            this.profileCB.SelectedItem = "Default";
+
+            // Restore last used profile, fall back to Default.
+            string lastProfile = "Default";
+            try
+            {
+                if (System.IO.File.Exists(LastProfileFile))
+                    lastProfile = System.IO.File.ReadAllText(LastProfileFile).Trim();
+            }
+            catch { /* ignore read errors */ }
+
+            if (!this.profileCB.Items.Contains(lastProfile))
+                lastProfile = "Default";
+
+            // Load the profile and notify all forms.
+            try
+            {
+                ProfileSingleton.Load(lastProfile);
+                currentProfile = lastProfile;
+            }
+            catch
+            {
+                ProfileSingleton.Load("Default");
+                currentProfile = "Default";
+                lastProfile = "Default";
+            }
+
+            this.profileCB.SelectedItem = lastProfile;
+            subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
         }
 
         public void refreshProfileList()
@@ -91,6 +120,15 @@ namespace _4RTools.Forms
             foreach (string p in Profile.ListAll())
             {
                 this.profileCB.Items.Add(p);
+            }
+        }
+
+        /// <summary>Selects a profile by name from the dropdown (triggers load via SelectedIndexChanged).</summary>
+        public void SelectProfile(string profileName)
+        {
+            if (this.profileCB.Items.Contains(profileName))
+            {
+                this.profileCB.SelectedItem = profileName;
             }
         }
 
@@ -144,19 +182,77 @@ namespace _4RTools.Forms
 
         private void profileCB_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (this.profileCB.Text != currentProfile)
+            // Don't auto-load on dropdown change — user must click Load (▶).
+            // This prevents the event cascade during refreshProfileList() from corrupting state.
+        }
+
+        /// <summary>Load button (▶) — loads the profile selected in the dropdown.</summary>
+        private void btnProfileLoad_Click(object sender, EventArgs e)
+        {
+            string selected = this.profileCB.Text;
+            if (string.IsNullOrWhiteSpace(selected)) return;
+
+            try
             {
-                try
-                {
-                    ProfileSingleton.Load(this.profileCB.Text); //LOAD PROFILE
-                    subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
-                    currentProfile = this.profileCB.Text.ToString();
-                }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine($"[ProfileSingleton.Load] Error Message: {ex.Message}");
-                    MessageBox.Show($"Error while loading the new profile. \nPlease get in touch via Discord. \nPlease send this error message to the admin: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                ProfileSingleton.Load(selected);
+                subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
+                currentProfile = selected;
+
+                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                catch { /* non-critical */ }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Profile.Load] {ex.Message}");
+                MessageBox.Show($"Failed to load profile \"{selected}\":\n{ex.Message}",
+                    "Load Profile", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>Save button (💾) — saves ALL current settings to the profile selected in the dropdown.</summary>
+        private void btnProfileSave_Click(object sender, EventArgs e)
+        {
+            string selected = this.profileCB.Text;
+            if (string.IsNullOrWhiteSpace(selected)) return;
+
+            // If saving to a different profile name, create it first.
+            Profile current = ProfileSingleton.GetCurrent();
+            if (current.Name != selected)
+            {
+                ProfileSingleton.Create(selected);
+                ProfileSingleton.Load(selected);
+                currentProfile = selected;
+                refreshProfileList();
+                this.profileCB.SelectedItem = selected;
+            }
+
+            // Save every action to the profile file.
+            try
+            {
+                ProfileSingleton.SetConfiguration(current.AHK);
+                ProfileSingleton.SetConfiguration(current.Autopot);
+                ProfileSingleton.SetConfiguration(current.AutopotYgg);
+                ProfileSingleton.SetConfiguration(current.Autobuff);
+                ProfileSingleton.SetConfiguration(current.StatusRecovery);
+                ProfileSingleton.SetConfiguration(current.SongMacro);
+                ProfileSingleton.SetConfiguration(current.MacroSwitch);
+                ProfileSingleton.SetConfiguration(current.AtkDefMode);
+                ProfileSingleton.SetConfiguration(current.DebuffsRecovery);
+                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer1);
+                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer2);
+                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer3);
+                ProfileSingleton.SetConfiguration(current.UserPreferences);
+
+                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                catch { /* non-critical */ }
+
+                MessageBox.Show($"Profile \"{selected}\" saved.",
+                    "Save Profile", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save profile:\n{ex.Message}",
+                    "Save Profile", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -172,11 +268,15 @@ namespace _4RTools.Forms
                     break;
                 case MessageCode.TURN_OFF:
                     this.profileCB.Enabled = true;
+                    this.btnProfileLoad.Enabled = true;
+                    this.btnProfileSave.Enabled = true;
                     this.processCB.Enabled = true;
 
                     break;
                 case MessageCode.TURN_ON:
                     this.profileCB.Enabled = false;
+                    this.btnProfileLoad.Enabled = false;
+                    this.btnProfileSave.Enabled = false;
                     this.processCB.Enabled = false;
                     this.characterName.Text = ClientSingleton.GetClient().ReadCharacterName();
                     break;

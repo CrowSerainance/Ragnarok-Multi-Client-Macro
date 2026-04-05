@@ -160,12 +160,11 @@ namespace _4RTools.Model
             List<string> profiles = new List<string>();
             try
             {
-                string[] files = Directory.GetFiles(AppConfig.ProfileFolder);
+                string[] files = Directory.GetFiles(AppConfig.ProfileFolder, "*.json");
 
                 foreach (string fileName in files)
                 {
-                    string[] len = fileName.Split('\\');
-                    string profileName = len[len.Length - 1].Split('.')[0];
+                    string profileName = Path.GetFileNameWithoutExtension(fileName);
                     profiles.Add(profileName);
                 }
             }

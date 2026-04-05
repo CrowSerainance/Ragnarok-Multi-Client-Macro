@@ -138,9 +138,39 @@ namespace _4RTools.Forms
             this.profileCB.FormattingEnabled = true;
             this.profileCB.Location = new System.Drawing.Point(405, 30);
             this.profileCB.Name = "profileCB";
-            this.profileCB.Size = new System.Drawing.Size(181, 21);
+            this.profileCB.Size = new System.Drawing.Size(120, 21);
             this.profileCB.TabIndex = 14;
             this.profileCB.SelectedIndexChanged += new System.EventHandler(this.profileCB_SelectedIndexChanged);
+            //
+            // btnProfileLoad
+            //
+            this.btnProfileLoad = new System.Windows.Forms.Button();
+            this.btnProfileLoad.Location = new System.Drawing.Point(528, 29);
+            this.btnProfileLoad.Size = new System.Drawing.Size(28, 23);
+            this.btnProfileLoad.Name = "btnProfileLoad";
+            this.btnProfileLoad.Text = "\u25B6";
+            this.btnProfileLoad.Font = new System.Drawing.Font("Segoe UI", 7F);
+            this.btnProfileLoad.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnProfileLoad.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(30, 90, 160);
+            this.btnProfileLoad.ForeColor = System.Drawing.Color.FromArgb(30, 90, 160);
+            this.btnProfileLoad.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnProfileLoad.TabIndex = 30;
+            this.btnProfileLoad.Click += new System.EventHandler(this.btnProfileLoad_Click);
+            //
+            // btnProfileSave
+            //
+            this.btnProfileSave = new System.Windows.Forms.Button();
+            this.btnProfileSave.Location = new System.Drawing.Point(558, 29);
+            this.btnProfileSave.Size = new System.Drawing.Size(28, 23);
+            this.btnProfileSave.Name = "btnProfileSave";
+            this.btnProfileSave.Text = "\uD83D\uDCBE";
+            this.btnProfileSave.Font = new System.Drawing.Font("Segoe UI", 7F);
+            this.btnProfileSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnProfileSave.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(40, 140, 60);
+            this.btnProfileSave.ForeColor = System.Drawing.Color.FromArgb(40, 140, 60);
+            this.btnProfileSave.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnProfileSave.TabIndex = 31;
+            this.btnProfileSave.Click += new System.EventHandler(this.btnProfileSave_Click);
             // 
             // panelFooter
             // 
@@ -383,6 +413,8 @@ namespace _4RTools.Forms
             this.Controls.Add(this.label1);
             this.Controls.Add(this.panel4);
             this.Controls.Add(this.labelProfile);
+            this.Controls.Add(this.btnProfileSave);
+            this.Controls.Add(this.btnProfileLoad);
             this.Controls.Add(this.profileCB);
             this.Controls.Add(this.atkDefMode);
             this.Controls.Add(this.btnRefresh);
@@ -415,6 +447,8 @@ namespace _4RTools.Forms
         private System.Windows.Forms.Panel panelDiscImage;
         private System.Windows.Forms.Label labelProfile;
         public System.Windows.Forms.ComboBox profileCB;
+        private System.Windows.Forms.Button btnProfileLoad;
+        private System.Windows.Forms.Button btnProfileSave;
         private System.Windows.Forms.Panel panelFooter;
         private System.Windows.Forms.Panel panel4;
         private System.Windows.Forms.Label label1;

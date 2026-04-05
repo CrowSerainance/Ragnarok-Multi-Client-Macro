@@ -1,104 +1,331 @@
-﻿using System;
-using _4RTools.Model;
+using System;
+using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
+using _4RTools.Model;
+using _4RTools.Utils;
 
 namespace _4RTools.Forms
 {
-    public partial class ProfileForm: Form
+    public partial class ProfileForm : Form
     {
         private Container container;
+        private const string PlaceholderText = "Enter profile name...";
+
         public ProfileForm(Container container)
         {
             InitializeComponent();
             this.container = container;
-            this.RefreshProfileList();
+            RefreshAll();
+        }
+
+        // ═══════════════════════════════════════════
+        //  Refresh helpers
+        // ═══════════════════════════════════════════
+
+        private void RefreshAll()
+        {
+            RefreshProfileList();
+            RefreshActiveLabel();
         }
 
         private void RefreshProfileList()
         {
+            this.lbProfilesList.Items.Clear();
             foreach (string profile in Profile.ListAll())
             {
-                int profileIndex = this.lbProfilesList.Items.IndexOf(profile);
-                if (profile != "Default" && profileIndex == -1) { this.lbProfilesList.Items.Add(profile); };
+                this.lbProfilesList.Items.Add(profile);
             }
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        private void RefreshActiveLabel()
         {
-            string newProfileName = this.txtProfileName.Text;
-            if (string.IsNullOrEmpty(newProfileName)) { return; }
-
-            ProfileSingleton.Create(newProfileName);
-            this.RefreshProfileList();
-            this.container.refreshProfileList();
-            this.txtProfileName.Text = ""; // clear text box
+            string name = ProfileSingleton.GetCurrent()?.Name ?? "Default";
+            this.lblActiveProfile.Text = name;
         }
 
-        private void btnRemoveProfile_Click(object sender, EventArgs e)
+        // ═══════════════════════════════════════════
+        //  Active Profile — Load Selected
+        // ═══════════════════════════════════════════
+
+        private void btnLoadSelected_Click(object sender, EventArgs e)
         {
             if (this.lbProfilesList.SelectedItem == null)
             {
-                MessageBox.Show("No profile found! To delete a profile, first select an option from the Profile list.");
+                MessageBox.Show("Select a profile from the list first.",
+                    "Load Profile", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            string selectedProfile = this.lbProfilesList.SelectedItem.ToString();
-            if (selectedProfile == "Default")
+            string selected = this.lbProfilesList.SelectedItem.ToString();
+            this.container.SelectProfile(selected);
+            RefreshActiveLabel();
+        }
+
+        // ═══════════════════════════════════════════
+        //  Create New Profile
+        // ═══════════════════════════════════════════
+
+        private void btnCreate_Click(object sender, EventArgs e)
+        {
+            string name = this.txtProfileName.Text.Trim();
+            if (string.IsNullOrEmpty(name) || name == PlaceholderText)
             {
-                MessageBox.Show("Cannot delete the Default profile!");
-            } else
+                return;
+            }
+
+            ProfileSingleton.Create(name);
+            this.txtProfileName.Text = PlaceholderText;
+            this.txtProfileName.ForeColor = Color.Gray;
+            RefreshAll();
+            this.container.refreshProfileList();
+        }
+
+        // Placeholder text behavior
+        private void txtProfileName_Enter(object sender, EventArgs e)
+        {
+            if (this.txtProfileName.Text == PlaceholderText)
             {
-                ProfileSingleton.Delete(selectedProfile);
-                this.lbProfilesList.Items.Remove(selectedProfile);
-                this.RefreshProfileList();
+                this.txtProfileName.Text = "";
+                this.txtProfileName.ForeColor = Color.Black;
+            }
+        }
+
+        private void txtProfileName_Leave(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(this.txtProfileName.Text))
+            {
+                this.txtProfileName.Text = PlaceholderText;
+                this.txtProfileName.ForeColor = Color.Gray;
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        //  Manage — Rename
+        // ═══════════════════════════════════════════
+
+        private void btnRename_Click(object sender, EventArgs e)
+        {
+            if (this.lbProfilesList.SelectedItem == null)
+            {
+                MessageBox.Show("Select a profile from the list first.",
+                    "Rename", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string selected = this.lbProfilesList.SelectedItem.ToString();
+            if (selected == "Default")
+            {
+                MessageBox.Show("The Default profile cannot be renamed.",
+                    "Rename", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            EditProfileName dialog = new EditProfileName();
+            dialog.SetProfileName(selected);
+            dialog.ShowDialog();
+
+            if (dialog.DialogResult == DialogResult.OK)
+            {
+                RefreshAll();
                 this.container.refreshProfileList();
             }
         }
 
-        private void btnEdit_Click(object sender, EventArgs e)
-        {
-            if (this.lbProfilesList.SelectedItem == null)
-            {
-                MessageBox.Show("To edit a profile, first select one from the Profile list.");
-                return;
-            }
-
-            var selectedProfile = this.lbProfilesList.Items[this.lbProfilesList.SelectedIndex].ToString();
-
-            if (selectedProfile == "Default")
-            {
-                MessageBox.Show("Cannot delete the Default profile!");
-            }
-            else {
-                EditProfileName editProfileName = new EditProfileName();
-                editProfileName.SetProfileName(selectedProfile);
-                editProfileName.ShowDialog();
-
-                if (editProfileName.DialogResult == DialogResult.OK) {
-                    this.RefreshProfileList();
-                    this.container.refreshProfileList();
-                };
-            }
-        }
+        // ═══════════════════════════════════════════
+        //  Manage — Duplicate
+        // ═══════════════════════════════════════════
 
         private void btnCopy_Click(object sender, EventArgs e)
         {
             if (this.lbProfilesList.SelectedItem == null)
             {
-                MessageBox.Show("To copy a profile, first select one from the Profile list.");
+                MessageBox.Show("Select a profile from the list first.",
+                    "Duplicate", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var selectedProfile = this.lbProfilesList.Items[this.lbProfilesList.SelectedIndex].ToString();
-            if (selectedProfile == "Default")
+            string selected = this.lbProfilesList.SelectedItem.ToString();
+            ProfileSingleton.Copy(selected);
+            RefreshAll();
+            this.container.refreshProfileList();
+        }
+
+        // ═══════════════════════════════════════════
+        //  Manage — Delete
+        // ═══════════════════════════════════════════
+
+        private void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (this.lbProfilesList.SelectedItem == null)
             {
-                MessageBox.Show("Cannot delete the Default profile!");
+                MessageBox.Show("Select a profile from the list first.",
+                    "Delete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            else {
-                ProfileSingleton.Copy(selectedProfile);
-                this.RefreshProfileList();
+
+            string selected = this.lbProfilesList.SelectedItem.ToString();
+            if (selected == "Default")
+            {
+                MessageBox.Show("The Default profile cannot be deleted.",
+                    "Delete", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DialogResult confirm = MessageBox.Show(
+                $"Delete profile \"{selected}\"?\nThis cannot be undone.",
+                "Delete Profile", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (confirm == DialogResult.Yes)
+            {
+                ProfileSingleton.Delete(selected);
+                RefreshAll();
                 this.container.refreshProfileList();
             }
+        }
+
+        // ═══════════════════════════════════════════
+        //  Manage — Export
+        // ═══════════════════════════════════════════
+
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            if (this.lbProfilesList.SelectedItem == null)
+            {
+                MessageBox.Show("Select a profile from the list first.",
+                    "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string selected = this.lbProfilesList.SelectedItem.ToString();
+            string sourceFile = Path.Combine(AppConfig.ProfileFolder, selected + ".json");
+
+            if (!File.Exists(sourceFile))
+            {
+                MessageBox.Show("Profile file not found.",
+                    "Export", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using (SaveFileDialog dlg = new SaveFileDialog())
+            {
+                dlg.Title = "Export Profile";
+                dlg.FileName = selected + ".json";
+                dlg.Filter = "JSON Profile (*.json)|*.json";
+                dlg.DefaultExt = "json";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        File.Copy(sourceFile, dlg.FileName, true);
+                        MessageBox.Show($"Profile \"{selected}\" exported successfully.",
+                            "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Export failed: {ex.Message}",
+                            "Export", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        //  Manage — Import
+        // ═══════════════════════════════════════════
+
+        private void btnImport_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Import Profile";
+                dlg.Filter = "JSON Profile (*.json)|*.json";
+
+                if (dlg.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string importName = Path.GetFileNameWithoutExtension(dlg.FileName);
+                string destFile = Path.Combine(AppConfig.ProfileFolder, importName + ".json");
+
+                if (File.Exists(destFile))
+                {
+                    DialogResult overwrite = MessageBox.Show(
+                        $"A profile named \"{importName}\" already exists.\nOverwrite it?",
+                        "Import", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                    if (overwrite != DialogResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                try
+                {
+                    if (!Directory.Exists(AppConfig.ProfileFolder))
+                    {
+                        Directory.CreateDirectory(AppConfig.ProfileFolder);
+                    }
+
+                    File.Copy(dlg.FileName, destFile, true);
+                    RefreshAll();
+                    this.container.refreshProfileList();
+                    MessageBox.Show($"Profile \"{importName}\" imported successfully.",
+                        "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Import failed: {ex.Message}",
+                        "Import", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        //  Custom list drawing — highlight active profile
+        // ═══════════════════════════════════════════
+
+        private void lbProfilesList_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+
+            string item = this.lbProfilesList.Items[e.Index].ToString();
+            string activeProfile = ProfileSingleton.GetCurrent()?.Name ?? "Default";
+            bool isActive = string.Equals(item, activeProfile, StringComparison.Ordinal);
+            bool isSelected = (e.State & DrawItemState.Selected) != 0;
+
+            // Background
+            Color bgColor;
+            if (isSelected)
+                bgColor = Color.FromArgb(30, 90, 160);
+            else if (isActive)
+                bgColor = Color.FromArgb(230, 242, 255);
+            else
+                bgColor = Color.White;
+
+            using (SolidBrush bg = new SolidBrush(bgColor))
+            {
+                e.Graphics.FillRectangle(bg, e.Bounds);
+            }
+
+            // Text
+            Color textColor = isSelected ? Color.White : Color.FromArgb(30, 30, 30);
+            Font textFont = isActive
+                ? new Font("Segoe UI", 8.5F, FontStyle.Bold)
+                : new Font("Segoe UI", 8.5F, FontStyle.Regular);
+
+            string displayText = isActive ? $"\u25B6 {item}" : $"   {item}";
+
+            using (SolidBrush fg = new SolidBrush(textColor))
+            {
+                e.Graphics.DrawString(displayText, textFont, fg,
+                    new RectangleF(e.Bounds.X + 2, e.Bounds.Y + 1, e.Bounds.Width - 4, e.Bounds.Height));
+            }
+
+            textFont.Dispose();
+            e.DrawFocusRectangle();
         }
     }
 }
