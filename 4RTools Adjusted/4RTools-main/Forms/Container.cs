@@ -215,33 +215,32 @@ namespace _4RTools.Forms
             string selected = this.profileCB.Text;
             if (string.IsNullOrWhiteSpace(selected)) return;
 
-            // If saving to a different profile name, create it first.
             Profile current = ProfileSingleton.GetCurrent();
             if (current.Name != selected)
             {
-                ProfileSingleton.Create(selected);
-                ProfileSingleton.Load(selected);
+                // Save current session under a new filename. Do NOT call Create()+Load() here:
+                // Load() re-reads JSON into the singleton and wipes Skill Spammer (AHK) and other
+                // in-memory edits before we write them back.
+                string path = AppConfig.ProfileFolder + selected + ".json";
+                if (!Directory.Exists(AppConfig.ProfileFolder))
+                {
+                    Directory.CreateDirectory(AppConfig.ProfileFolder);
+                }
+
+                if (!File.Exists(path))
+                {
+                    File.WriteAllText(path, "{}");
+                }
+
+                current.Name = selected;
                 currentProfile = selected;
                 refreshProfileList();
                 this.profileCB.SelectedItem = selected;
             }
 
-            // Save every action to the profile file.
             try
             {
-                ProfileSingleton.SetConfiguration(current.AHK);
-                ProfileSingleton.SetConfiguration(current.Autopot);
-                ProfileSingleton.SetConfiguration(current.AutopotYgg);
-                ProfileSingleton.SetConfiguration(current.Autobuff);
-                ProfileSingleton.SetConfiguration(current.StatusRecovery);
-                ProfileSingleton.SetConfiguration(current.SongMacro);
-                ProfileSingleton.SetConfiguration(current.MacroSwitch);
-                ProfileSingleton.SetConfiguration(current.AtkDefMode);
-                ProfileSingleton.SetConfiguration(current.DebuffsRecovery);
-                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer1);
-                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer2);
-                ProfileSingleton.SetConfiguration(current.AutoRefreshSpammer3);
-                ProfileSingleton.SetConfiguration(current.UserPreferences);
+                ProfileSingleton.PersistAllConfiguration();
 
                 try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }

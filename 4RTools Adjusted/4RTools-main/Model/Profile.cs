@@ -43,6 +43,10 @@ namespace _4RTools.Model
             }
         }
 
+        /// <summary>
+        /// Ensures a profile file exists on disk. Does NOT load it or change the active profile.
+        /// Callers must explicitly call <see cref="Load"/> if they want to switch.
+        /// </summary>
         public static void Create(string profileName)
         {
             string jsonFileName = AppConfig.ProfileFolder + profileName + ".json";
@@ -50,15 +54,11 @@ namespace _4RTools.Model
             if (!File.Exists(jsonFileName))
             {
                 if (!Directory.Exists(AppConfig.ProfileFolder)) { Directory.CreateDirectory(AppConfig.ProfileFolder); }
-                FileStream fs = File.Create(jsonFileName);
-                fs.Close();
 
-                Profile profile = new Profile(profileName);
-                string output = JsonConvert.SerializeObject(profile, Formatting.Indented);
+                Profile newProfile = new Profile(profileName);
+                string output = JsonConvert.SerializeObject(newProfile, Formatting.Indented);
                 File.WriteAllText(jsonFileName, output);
             }
-
-            ProfileSingleton.Load(profileName);
         }
 
         public static void Delete(string profileName)
@@ -82,8 +82,10 @@ namespace _4RTools.Model
         {
             try
             {
-                string jsonFileName = AppConfig.ProfileFolder + profileName + " Copy.json";
-                if (profileName != "Default" && !File.Exists(jsonFileName)) {
+                string copyName = profileName + " Copy";
+                string jsonFileName = AppConfig.ProfileFolder + copyName + ".json";
+                if (!File.Exists(jsonFileName))
+                {
                     File.Copy(AppConfig.ProfileFolder + profileName + ".json", jsonFileName);
                 }
             }
@@ -102,6 +104,54 @@ namespace _4RTools.Model
             }
         }
 
+        /// <summary>
+        /// Writes every configurable module from the current in-memory profile to disk
+        /// in a single atomic read-modify-write cycle (not 13 separate file writes).
+        /// </summary>
+        public static void PersistAllConfiguration()
+        {
+            if (profile == null)
+            {
+                return;
+            }
+
+            string path = AppConfig.ProfileFolder + profile.Name + ".json";
+            if (!Directory.Exists(AppConfig.ProfileFolder))
+            {
+                Directory.CreateDirectory(AppConfig.ProfileFolder);
+            }
+
+            string jsonData = File.Exists(path) ? File.ReadAllText(path) : "{}";
+            JObject jsonObj = string.IsNullOrWhiteSpace(jsonData)
+                ? new JObject()
+                : JObject.Parse(jsonData);
+
+            // Batch all modules into a single write.
+            Action[] allActions = new Action[]
+            {
+                profile.AHK,
+                profile.Autopot,
+                profile.AutopotYgg,
+                profile.Autobuff,
+                profile.StatusRecovery,
+                profile.SongMacro,
+                profile.MacroSwitch,
+                profile.AtkDefMode,
+                profile.DebuffsRecovery,
+                profile.AutoRefreshSpammer1,
+                profile.AutoRefreshSpammer2,
+                profile.AutoRefreshSpammer3,
+                profile.UserPreferences
+            };
+
+            foreach (Action action in allActions)
+            {
+                jsonObj[action.GetActionName()] = JToken.Parse(action.GetConfiguration());
+            }
+
+            File.WriteAllText(path, JsonConvert.SerializeObject(jsonObj, Formatting.Indented));
+        }
+
         public static Profile GetCurrent()
         {
             return profile;
@@ -112,17 +162,28 @@ namespace _4RTools.Model
     {
         public string Name { get; set; }
         public UserPreferences UserPreferences { get; set; }
+
+        // JsonProperty ensures Create() serialization writes the SAME key name
+        // that Load()/GetByAction() reads via GetActionName(). Without this,
+        // Create writes "AHK" but Load looks for "AHK20", causing dead duplicate keys.
+        [JsonProperty("AHK20")]
         public AHK AHK { get; set; }
         public Autopot Autopot { get; set; }
         public Autopot AutopotYgg { get; set; }
+        [JsonProperty("AutoRefreshSpammer01")]
         public AutoRefreshSpammer AutoRefreshSpammer1 { get; set; }
+        [JsonProperty("AutoRefreshSpammer02")]
         public AutoRefreshSpammer AutoRefreshSpammer2 { get; set; }
+        [JsonProperty("AutoRefreshSpammer03")]
         public AutoRefreshSpammer AutoRefreshSpammer3 { get; set; }
         public AutoBuff Autobuff { get; set; }
         public StatusRecovery StatusRecovery { get; set; }
+        [JsonProperty("SongMacro2.0")]
         public Macro SongMacro { get; set; }
+        [JsonProperty("MacroSwitch2.0")]
         public Macro MacroSwitch { get; set; }
 
+        [JsonProperty("ATKDEFMode")]
         public ATKDEFMode AtkDefMode { get; set; }
         public DebuffsRecovery DebuffsRecovery { get; set; }
 
