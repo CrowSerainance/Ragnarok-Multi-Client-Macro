@@ -58,8 +58,9 @@ namespace _4RTools.Forms
             }
 
             string selected = this.lbProfilesList.SelectedItem.ToString();
-            this.container.SelectProfile(selected);
+            this.container.LoadProfileAndNotify(selected);
             RefreshActiveLabel();
+            RefreshProfileList();
         }
 
         // ═══════════════════════════════════════════
@@ -178,9 +179,20 @@ namespace _4RTools.Forms
 
             if (confirm == DialogResult.Yes)
             {
+                bool wasActive = string.Equals(
+                    ProfileSingleton.GetCurrent()?.Name,
+                    selected,
+                    StringComparison.Ordinal);
+
                 ProfileSingleton.Delete(selected);
                 RefreshAll();
                 this.container.refreshProfileList();
+
+                if (wasActive)
+                {
+                    this.container.LoadProfileAndNotify("Default");
+                    RefreshActiveLabel();
+                }
             }
         }
 

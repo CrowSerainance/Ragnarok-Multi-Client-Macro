@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using _4RTools.Utils;
 using _4RTools.Forms;
@@ -43,10 +43,6 @@ namespace _4RTools.Model
             }
         }
 
-        /// <summary>
-        /// Ensures a profile file exists on disk. Does NOT load it or change the active profile.
-        /// Callers must explicitly call <see cref="Load"/> if they want to switch.
-        /// </summary>
         public static void Create(string profileName)
         {
             string jsonFileName = AppConfig.ProfileFolder + profileName + ".json";
@@ -54,11 +50,15 @@ namespace _4RTools.Model
             if (!File.Exists(jsonFileName))
             {
                 if (!Directory.Exists(AppConfig.ProfileFolder)) { Directory.CreateDirectory(AppConfig.ProfileFolder); }
+                FileStream fs = File.Create(jsonFileName);
+                fs.Close();
 
-                Profile newProfile = new Profile(profileName);
-                string output = JsonConvert.SerializeObject(newProfile, Formatting.Indented);
+                Profile profile = new Profile(profileName);
+                string output = JsonConvert.SerializeObject(profile, Formatting.Indented);
                 File.WriteAllText(jsonFileName, output);
             }
+
+            ProfileSingleton.Load(profileName);
         }
 
         public static void Delete(string profileName)
@@ -92,6 +92,10 @@ namespace _4RTools.Model
             catch { }
         }
 
+        /// <summary>
+        /// Saves a single module to the current profile file.
+        /// Uses the same dynamic serialization format as the original 4RTools.
+        /// </summary>
         public static void SetConfiguration(Action action)
         {
             if (profile != null)
@@ -105,8 +109,8 @@ namespace _4RTools.Model
         }
 
         /// <summary>
-        /// Writes every configurable module from the current in-memory profile to disk
-        /// in a single atomic read-modify-write cycle (not 13 separate file writes).
+        /// Writes every configurable module from the current in-memory profile to disk.
+        /// Uses the same format as SetConfiguration (dynamic, string values) for consistency.
         /// </summary>
         public static void PersistAllConfiguration()
         {
@@ -116,17 +120,16 @@ namespace _4RTools.Model
             }
 
             string path = AppConfig.ProfileFolder + profile.Name + ".json";
-            if (!Directory.Exists(AppConfig.ProfileFolder))
+            if (!File.Exists(path))
             {
-                Directory.CreateDirectory(AppConfig.ProfileFolder);
+                if (!Directory.Exists(AppConfig.ProfileFolder)) { Directory.CreateDirectory(AppConfig.ProfileFolder); }
+                File.WriteAllText(path, "{}");
             }
 
-            string jsonData = File.Exists(path) ? File.ReadAllText(path) : "{}";
-            JObject jsonObj = string.IsNullOrWhiteSpace(jsonData)
-                ? new JObject()
-                : JObject.Parse(jsonData);
+            string jsonData = File.ReadAllText(path);
+            dynamic jsonObj = JsonConvert.DeserializeObject(jsonData);
 
-            // Batch all modules into a single write.
+            // Write all modules using the exact same format as SetConfiguration.
             Action[] allActions = new Action[]
             {
                 profile.AHK,
@@ -146,10 +149,11 @@ namespace _4RTools.Model
 
             foreach (Action action in allActions)
             {
-                jsonObj[action.GetActionName()] = JToken.Parse(action.GetConfiguration());
+                jsonObj[action.GetActionName()] = action.GetConfiguration();
             }
 
-            File.WriteAllText(path, JsonConvert.SerializeObject(jsonObj, Formatting.Indented));
+            string output = JsonConvert.SerializeObject(jsonObj, Formatting.Indented);
+            File.WriteAllText(path, output);
         }
 
         public static Profile GetCurrent()
@@ -163,9 +167,8 @@ namespace _4RTools.Model
         public string Name { get; set; }
         public UserPreferences UserPreferences { get; set; }
 
-        // JsonProperty ensures Create() serialization writes the SAME key name
-        // that Load()/GetByAction() reads via GetActionName(). Without this,
-        // Create writes "AHK" but Load looks for "AHK20", causing dead duplicate keys.
+        // JsonProperty aligns Create() serialization key names with GetActionName()
+        // so Load()/GetByAction() finds the data under the correct key.
         [JsonProperty("AHK20")]
         public AHK AHK { get; set; }
         public Autopot Autopot { get; set; }

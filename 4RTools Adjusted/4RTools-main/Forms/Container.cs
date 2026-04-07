@@ -94,20 +94,13 @@ namespace _4RTools.Forms
             if (!this.profileCB.Items.Contains(lastProfile))
                 lastProfile = "Default";
 
-            // Load the profile and notify all forms.
-            try
-            {
-                ProfileSingleton.Load(lastProfile);
-                currentProfile = lastProfile;
-            }
-            catch
-            {
-                ProfileSingleton.Load("Default");
-                currentProfile = "Default";
-                lastProfile = "Default";
-            }
-
+            // Set currentProfile FIRST so the SelectedIndexChanged handler
+            // can detect the change and call Load + Notify.
+            currentProfile = "Default"; // Create() already loaded Default
             this.profileCB.SelectedItem = lastProfile;
+            // If lastProfile != "Default", SelectedIndexChanged fires and loads it.
+            // If lastProfile == "Default", it's already loaded by Create().
+            // Either way, fire PROFILE_CHANGED so all forms pick up the data.
             subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
         }
 
@@ -182,11 +175,30 @@ namespace _4RTools.Forms
 
         private void profileCB_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Don't auto-load on dropdown change — user must click Load (▶).
-            // This prevents the event cascade during refreshProfileList() from corrupting state.
+            string selected = this.profileCB.Text;
+            if (string.IsNullOrWhiteSpace(selected) || selected == currentProfile)
+            {
+                return;
+            }
+
+            try
+            {
+                ProfileSingleton.Load(selected);
+                subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
+                currentProfile = selected;
+
+                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                catch { /* non-critical */ }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[ProfileSingleton.Load] Error Message: {ex.Message}");
+                MessageBox.Show($"Error while loading profile: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        /// <summary>Load button (▶) — loads the profile selected in the dropdown.</summary>
+        /// <summary>Load button (▶) — force-reloads the currently selected profile from disk.</summary>
         private void btnProfileLoad_Click(object sender, EventArgs e)
         {
             string selected = this.profileCB.Text;
@@ -205,6 +217,31 @@ namespace _4RTools.Forms
             {
                 Console.Error.WriteLine($"[Profile.Load] {ex.Message}");
                 MessageBox.Show($"Failed to load profile \"{selected}\":\n{ex.Message}",
+                    "Load Profile", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>Called by ProfileForm and other code to load a specific profile by name.</summary>
+        public void LoadProfileAndNotify(string profileName)
+        {
+            try
+            {
+                ProfileSingleton.Load(profileName);
+                currentProfile = profileName;
+                if (this.profileCB.Items.Contains(profileName))
+                {
+                    this.profileCB.SelectedItem = profileName;
+                }
+
+                subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
+
+                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                catch { /* non-critical */ }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Profile.Load] {ex.Message}");
+                MessageBox.Show($"Failed to load profile \"{profileName}\":\n{ex.Message}",
                     "Load Profile", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
