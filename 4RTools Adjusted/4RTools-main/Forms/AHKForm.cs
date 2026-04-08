@@ -119,6 +119,7 @@ namespace _4RTools.Forms
             switch ((subject as Subject).Message.code)
             {
                 case MessageCode.PROFILE_CHANGED:
+                    Console.WriteLine($"[AHKForm] PROFILE_CHANGED received — profile=\"{ProfileSingleton.GetCurrent()?.Name}\", AHK slot[0]={ProfileSingleton.GetCurrent()?.AHK?.Slots?[0]?.TriggerKey}");
                     UpdateUI();
                     break;
                 case MessageCode.TURN_ON:

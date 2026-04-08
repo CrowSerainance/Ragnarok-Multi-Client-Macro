@@ -80,6 +80,10 @@ namespace _4RTools.Forms
             this.txtProfileName.ForeColor = Color.Gray;
             RefreshAll();
             this.container.refreshProfileList();
+
+            // Sync Container state: update header dropdown, currentProfile, and _last_profile.txt
+            this.container.LoadProfileAndNotify(name);
+            RefreshActiveLabel();
         }
 
         // Placeholder text behavior

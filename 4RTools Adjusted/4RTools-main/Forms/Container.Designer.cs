@@ -136,6 +136,7 @@ namespace _4RTools.Forms
             // profileCB
             // 
             this.profileCB.FormattingEnabled = true;
+            this.profileCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.profileCB.Location = new System.Drawing.Point(405, 30);
             this.profileCB.Name = "profileCB";
             this.profileCB.Size = new System.Drawing.Size(120, 21);

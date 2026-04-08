@@ -15,14 +15,25 @@ namespace _4RTools.Model
         {
             try
             {
-                string json = File.ReadAllText(AppConfig.ProfileFolder + profileName + ".json");
+                string filePath = AppConfig.ProfileFolder + profileName + ".json";
+                Console.WriteLine($"[Profile.Load] Loading \"{profileName}\" from \"{Path.GetFullPath(filePath)}\"");
+                string json = File.ReadAllText(filePath);
                 dynamic rawObject = JsonConvert.DeserializeObject(json);
 
                 if ((rawObject != null))
                 {
                     profile.Name = profileName;
                     profile.UserPreferences = JsonConvert.DeserializeObject<UserPreferences>(Profile.GetByAction(rawObject, profile.UserPreferences));
-                    profile.AHK = JsonConvert.DeserializeObject<AHK>(Profile.GetByAction(rawObject, profile.AHK));
+
+                    object ahkRaw = Profile.GetByAction(rawObject, profile.AHK);
+                    Console.WriteLine($"[Profile.Load] AHK20 raw type: {ahkRaw?.GetType()?.Name}, length: {ahkRaw?.ToString()?.Length}");
+                    profile.AHK = JsonConvert.DeserializeObject<AHK>(ahkRaw?.ToString());
+                    int boundSlots = 0;
+                    if (profile.AHK?.Slots != null)
+                    {
+                        foreach (var s in profile.AHK.Slots) { if (s.TriggerKey != "None" && !string.IsNullOrEmpty(s.TriggerKey)) boundSlots++; }
+                    }
+                    Console.WriteLine($"[Profile.Load] AHK deserialized OK — {boundSlots} bound slot(s), mode={profile.AHK?.ahkMode}");
                     profile.Autopot = JsonConvert.DeserializeObject<Autopot>(Profile.GetByAction(rawObject, profile.Autopot));
                     profile.AutopotYgg = JsonConvert.DeserializeObject<Autopot>(Profile.GetByAction(rawObject, profile.AutopotYgg));
                     profile.StatusRecovery = JsonConvert.DeserializeObject<StatusRecovery>(Profile.GetByAction(rawObject, profile.StatusRecovery));
@@ -100,11 +111,18 @@ namespace _4RTools.Model
         {
             if (profile != null)
             {
-                string jsonData = File.ReadAllText(AppConfig.ProfileFolder + profile.Name + ".json");
+                string filePath = AppConfig.ProfileFolder + profile.Name + ".json";
+                Console.WriteLine($"[SetConfiguration] Saving {action.GetActionName()} to \"{Path.GetFullPath(filePath)}\"");
+                string jsonData = File.ReadAllText(filePath);
                 dynamic jsonObj = JsonConvert.DeserializeObject(jsonData);
                 jsonObj[action.GetActionName()] = action.GetConfiguration();
                 string output = JsonConvert.SerializeObject(jsonObj, Formatting.Indented);
-                File.WriteAllText(AppConfig.ProfileFolder + profile.Name + ".json", output);
+                File.WriteAllText(filePath, output);
+                Console.WriteLine($"[SetConfiguration] Saved OK ({output.Length} bytes)");
+            }
+            else
+            {
+                Console.Error.WriteLine("[SetConfiguration] SKIPPED — profile is null!");
             }
         }
 

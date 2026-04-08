@@ -78,6 +78,7 @@ namespace _4RTools.Forms
 
         private void Container_Load(object sender, EventArgs e)
         {
+            Console.WriteLine("[Container_Load] START");
             ProfileSingleton.Create("Default");
             this.refreshProcessList();
             this.refreshProfileList();
@@ -91,17 +92,23 @@ namespace _4RTools.Forms
             }
             catch { /* ignore read errors */ }
 
+            Console.WriteLine($"[Container_Load] lastProfile from file: \"{lastProfile}\"");
             if (!this.profileCB.Items.Contains(lastProfile))
+            {
+                Console.WriteLine($"[Container_Load] \"{lastProfile}\" not in dropdown, falling back to Default");
                 lastProfile = "Default";
+            }
 
             // Set currentProfile FIRST so the SelectedIndexChanged handler
             // can detect the change and call Load + Notify.
             currentProfile = "Default"; // Create() already loaded Default
             this.profileCB.SelectedItem = lastProfile;
+            Console.WriteLine($"[Container_Load] Set dropdown to \"{lastProfile}\", currentProfile=\"{currentProfile}\"");
             // If lastProfile != "Default", SelectedIndexChanged fires and loads it.
             // If lastProfile == "Default", it's already loaded by Create().
             // Either way, fire PROFILE_CHANGED so all forms pick up the data.
             subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
+            Console.WriteLine($"[Container_Load] END — active profile: \"{ProfileSingleton.GetCurrent()?.Name}\", AHK slots configured: {ProfileSingleton.GetCurrent()?.AHK?.Slots?.Count}");
         }
 
         public void refreshProfileList()
@@ -178,14 +185,17 @@ namespace _4RTools.Forms
             string selected = this.profileCB.Text;
             if (string.IsNullOrWhiteSpace(selected) || selected == currentProfile)
             {
+                Console.WriteLine($"[profileCB_SelectedIndexChanged] SKIP — selected=\"{selected}\", currentProfile=\"{currentProfile}\"");
                 return;
             }
 
             try
             {
+                Console.WriteLine($"[profileCB_SelectedIndexChanged] Loading profile \"{selected}\" (was \"{currentProfile}\")");
                 ProfileSingleton.Load(selected);
                 subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
                 currentProfile = selected;
+                Console.WriteLine($"[profileCB_SelectedIndexChanged] Loaded OK. AHK slot[0] trigger: {ProfileSingleton.GetCurrent()?.AHK?.Slots?[0]?.TriggerKey}");
 
                 try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }
