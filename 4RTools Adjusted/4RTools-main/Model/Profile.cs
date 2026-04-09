@@ -1,9 +1,10 @@
-using System.Collections.Generic;
-using Newtonsoft.Json;
-using _4RTools.Utils;
-using _4RTools.Forms;
-using System.IO;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using _4RTools.Forms;
+using _4RTools.Utils;
 
 namespace _4RTools.Model
 {
@@ -13,79 +14,62 @@ namespace _4RTools.Model
 
         public static void Load(string profileName)
         {
+            string filePath = AppConfig.GetProfilePath(profileName);
             try
             {
-                string filePath = AppConfig.ProfileFolder + profileName + ".json";
-                Console.WriteLine($"[Profile.Load] Loading \"{profileName}\" from \"{Path.GetFullPath(filePath)}\"");
-                string json = File.ReadAllText(filePath);
-                dynamic rawObject = JsonConvert.DeserializeObject(json);
-
-                if ((rawObject != null))
-                {
-                    profile.Name = profileName;
-                    profile.UserPreferences = JsonConvert.DeserializeObject<UserPreferences>(Profile.GetByAction(rawObject, profile.UserPreferences));
-
-                    object ahkRaw = Profile.GetByAction(rawObject, profile.AHK);
-                    Console.WriteLine($"[Profile.Load] AHK20 raw type: {ahkRaw?.GetType()?.Name}, length: {ahkRaw?.ToString()?.Length}");
-                    profile.AHK = JsonConvert.DeserializeObject<AHK>(ahkRaw?.ToString());
-                    int boundSlots = 0;
-                    if (profile.AHK?.Slots != null)
-                    {
-                        foreach (var s in profile.AHK.Slots) { if (s.TriggerKey != "None" && !string.IsNullOrEmpty(s.TriggerKey)) boundSlots++; }
-                    }
-                    Console.WriteLine($"[Profile.Load] AHK deserialized OK — {boundSlots} bound slot(s), mode={profile.AHK?.ahkMode}");
-                    profile.Autopot = JsonConvert.DeserializeObject<Autopot>(Profile.GetByAction(rawObject, profile.Autopot));
-                    profile.AutopotYgg = JsonConvert.DeserializeObject<Autopot>(Profile.GetByAction(rawObject, profile.AutopotYgg));
-                    profile.StatusRecovery = JsonConvert.DeserializeObject<StatusRecovery>(Profile.GetByAction(rawObject, profile.StatusRecovery));
-                    profile.AutoRefreshSpammer1 = JsonConvert.DeserializeObject<AutoRefreshSpammer>(Profile.GetByAction(rawObject, profile.AutoRefreshSpammer1));
-                    profile.AutoRefreshSpammer2 = JsonConvert.DeserializeObject<AutoRefreshSpammer>(Profile.GetByAction(rawObject, profile.AutoRefreshSpammer2));
-                    profile.AutoRefreshSpammer3 = JsonConvert.DeserializeObject<AutoRefreshSpammer>(Profile.GetByAction(rawObject, profile.AutoRefreshSpammer3));
-                    profile.Autobuff = JsonConvert.DeserializeObject<AutoBuff>(Profile.GetByAction(rawObject, profile.Autobuff));
-                    profile.SongMacro = JsonConvert.DeserializeObject<Macro>(Profile.GetByAction(rawObject, profile.SongMacro));
-                    profile.AtkDefMode = JsonConvert.DeserializeObject<ATKDEFMode>(Profile.GetByAction(rawObject, profile.AtkDefMode));
-                    profile.MacroSwitch = JsonConvert.DeserializeObject<Macro>(Profile.GetByAction(rawObject, profile.MacroSwitch));
-                    profile.DebuffsRecovery = JsonConvert.DeserializeObject<DebuffsRecovery>(Profile.GetByAction(rawObject, profile.DebuffsRecovery));
-                }
+                Console.WriteLine($"[Profile.Load] Loading \"{profileName}\" from \"{filePath}\"");
+                JObject root = Profile.ReadProfileRoot(filePath, profileName, createIfMissing: true);
+                profile = Profile.DeserializeRoot(root, profileName);
+                Console.WriteLine($"[Profile.Load] Loaded OK. Schema={Profile.DetectSchema(root)}, path=\"{filePath}\"");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[Profile] Error Message: {ex.Message}");
+                Console.Error.WriteLine($"[Profile.Load] Error loading \"{profileName}\" from \"{filePath}\": {ex}");
                 throw new Exception("Houve um problema ao carregar o perfil. Delete a pasta Profiles e tente novamente.");
             }
         }
 
         public static void Create(string profileName)
         {
-            string jsonFileName = AppConfig.ProfileFolder + profileName + ".json";
+            string filePath = AppConfig.GetProfilePath(profileName);
+            AppConfig.EnsureProfileDirectory();
 
-            if (!File.Exists(jsonFileName))
+            if (!File.Exists(filePath))
             {
-                if (!Directory.Exists(AppConfig.ProfileFolder)) { Directory.CreateDirectory(AppConfig.ProfileFolder); }
-                FileStream fs = File.Create(jsonFileName);
-                fs.Close();
-
-                Profile profile = new Profile(profileName);
-                string output = JsonConvert.SerializeObject(profile, Formatting.Indented);
-                File.WriteAllText(jsonFileName, output);
+                Console.WriteLine($"[Profile.Create] Creating normalized profile \"{profileName}\" at \"{filePath}\"");
+                Profile newProfile = new Profile(profileName);
+                JObject root = Profile.BuildCanonicalRoot(newProfile);
+                Profile.WriteProfileRoot(filePath, root, profileName);
             }
 
-            ProfileSingleton.Load(profileName);
+            Load(profileName);
         }
 
         public static void Delete(string profileName)
         {
             try
             {
-                if (profileName != "Default") { File.Delete(AppConfig.ProfileFolder + profileName + ".json"); }
+                if (profileName != "Default")
+                {
+                    string filePath = AppConfig.GetProfilePath(profileName);
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                    }
+                }
             }
             catch { }
         }
 
         public static void Rename(string oldProfileName, string newProfileName)
         {
-            string jsonFileName = AppConfig.ProfileFolder + newProfileName + ".json";
-            if (oldProfileName != "Default" && !File.Exists(jsonFileName)) {
-                File.Move(AppConfig.ProfileFolder + oldProfileName + ".json", jsonFileName);
+            string oldPath = AppConfig.GetProfilePath(oldProfileName);
+            string newPath = AppConfig.GetProfilePath(newProfileName);
+            AppConfig.EnsureProfileDirectory();
+
+            if (oldProfileName != "Default" && File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                File.Move(oldPath, newPath);
             }
         }
 
@@ -93,43 +77,37 @@ namespace _4RTools.Model
         {
             try
             {
+                AppConfig.EnsureProfileDirectory();
                 string copyName = profileName + " Copy";
-                string jsonFileName = AppConfig.ProfileFolder + copyName + ".json";
-                if (!File.Exists(jsonFileName))
+                string sourcePath = AppConfig.GetProfilePath(profileName);
+                string destinationPath = AppConfig.GetProfilePath(copyName);
+                if (File.Exists(sourcePath) && !File.Exists(destinationPath))
                 {
-                    File.Copy(AppConfig.ProfileFolder + profileName + ".json", jsonFileName);
+                    File.Copy(sourcePath, destinationPath);
                 }
             }
             catch { }
         }
 
-        /// <summary>
-        /// Saves a single module to the current profile file.
-        /// Uses the same dynamic serialization format as the original 4RTools.
-        /// </summary>
         public static void SetConfiguration(Action action)
         {
-            if (profile != null)
+            if (profile == null || action == null)
             {
-                string filePath = AppConfig.ProfileFolder + profile.Name + ".json";
-                Console.WriteLine($"[SetConfiguration] Saving {action.GetActionName()} to \"{Path.GetFullPath(filePath)}\"");
-                string jsonData = File.ReadAllText(filePath);
-                dynamic jsonObj = JsonConvert.DeserializeObject(jsonData);
-                jsonObj[action.GetActionName()] = action.GetConfiguration();
-                string output = JsonConvert.SerializeObject(jsonObj, Formatting.Indented);
-                File.WriteAllText(filePath, output);
-                Console.WriteLine($"[SetConfiguration] Saved OK ({output.Length} bytes)");
+                Console.Error.WriteLine("[SetConfiguration] SKIPPED - profile or action is null.");
+                return;
             }
-            else
-            {
-                Console.Error.WriteLine("[SetConfiguration] SKIPPED — profile is null!");
-            }
+
+            string filePath = AppConfig.GetProfilePath(profile.Name);
+            Console.WriteLine($"[SetConfiguration] Saving {action.GetActionName()} to \"{filePath}\"");
+
+            JObject root = Profile.ReadProfileRoot(filePath, profile.Name, createIfMissing: true);
+            root["Name"] = profile.Name;
+            root[action.GetActionName()] = Profile.ToConfigurationToken(action);
+
+            Profile.WriteProfileRoot(filePath, root, profile.Name);
+            Console.WriteLine($"[SetConfiguration] Saved OK ({action.GetActionName()})");
         }
 
-        /// <summary>
-        /// Writes every configurable module from the current in-memory profile to disk.
-        /// Uses the same format as SetConfiguration (dynamic, string values) for consistency.
-        /// </summary>
         public static void PersistAllConfiguration()
         {
             if (profile == null)
@@ -137,41 +115,10 @@ namespace _4RTools.Model
                 return;
             }
 
-            string path = AppConfig.ProfileFolder + profile.Name + ".json";
-            if (!File.Exists(path))
-            {
-                if (!Directory.Exists(AppConfig.ProfileFolder)) { Directory.CreateDirectory(AppConfig.ProfileFolder); }
-                File.WriteAllText(path, "{}");
-            }
-
-            string jsonData = File.ReadAllText(path);
-            dynamic jsonObj = JsonConvert.DeserializeObject(jsonData);
-
-            // Write all modules using the exact same format as SetConfiguration.
-            Action[] allActions = new Action[]
-            {
-                profile.AHK,
-                profile.Autopot,
-                profile.AutopotYgg,
-                profile.Autobuff,
-                profile.StatusRecovery,
-                profile.SongMacro,
-                profile.MacroSwitch,
-                profile.AtkDefMode,
-                profile.DebuffsRecovery,
-                profile.AutoRefreshSpammer1,
-                profile.AutoRefreshSpammer2,
-                profile.AutoRefreshSpammer3,
-                profile.UserPreferences
-            };
-
-            foreach (Action action in allActions)
-            {
-                jsonObj[action.GetActionName()] = action.GetConfiguration();
-            }
-
-            string output = JsonConvert.SerializeObject(jsonObj, Formatting.Indented);
-            File.WriteAllText(path, output);
+            string path = AppConfig.GetProfilePath(profile.Name);
+            Console.WriteLine($"[PersistAllConfiguration] Writing normalized profile to \"{path}\"");
+            JObject root = Profile.BuildCanonicalRoot(profile);
+            Profile.WriteProfileRoot(path, root, profile.Name);
         }
 
         public static Profile GetCurrent()
@@ -185,8 +132,6 @@ namespace _4RTools.Model
         public string Name { get; set; }
         public UserPreferences UserPreferences { get; set; }
 
-        // JsonProperty aligns Create() serialization key names with GetActionName()
-        // so Load()/GetByAction() finds the data under the correct key.
         [JsonProperty("AHK20")]
         public AHK AHK { get; set; }
         public Autopot Autopot { get; set; }
@@ -203,7 +148,6 @@ namespace _4RTools.Model
         public Macro SongMacro { get; set; }
         [JsonProperty("MacroSwitch2.0")]
         public Macro MacroSwitch { get; set; }
-
         [JsonProperty("ATKDEFMode")]
         public ATKDEFMode AtkDefMode { get; set; }
         public DebuffsRecovery DebuffsRecovery { get; set; }
@@ -211,7 +155,6 @@ namespace _4RTools.Model
         public Profile(string name)
         {
             this.Name = name;
-
             this.UserPreferences = new UserPreferences();
             this.AHK = new AHK();
             this.Autopot = new Autopot(Autopot.ACTION_NAME_AUTOPOT);
@@ -227,14 +170,163 @@ namespace _4RTools.Model
             this.DebuffsRecovery = new DebuffsRecovery();
         }
 
-        public static object GetByAction(dynamic obj, Action action)
+        public static JObject BuildCanonicalRoot(Profile source)
         {
-            if (obj != null && obj[action.GetActionName()] != null)
+            JObject root = new JObject();
+            root["Name"] = source.Name;
+
+            foreach (Action action in GetAllActions(source))
             {
-                return obj[action.GetActionName()].ToString();
+                root[action.GetActionName()] = ToConfigurationToken(action);
             }
 
-            return action.GetConfiguration();
+            return root;
+        }
+
+        public static Profile DeserializeRoot(JObject root, string profileName)
+        {
+            Profile loaded = new Profile(profileName);
+            loaded.Name = (string)root["Name"] ?? profileName;
+
+            loaded.UserPreferences = DeserializeAction<UserPreferences>(root, loaded.UserPreferences);
+            loaded.AHK = DeserializeAction<AHK>(root, loaded.AHK);
+            loaded.Autopot = DeserializeAction<Autopot>(root, loaded.Autopot);
+            loaded.AutopotYgg = DeserializeAction<Autopot>(root, loaded.AutopotYgg);
+            loaded.StatusRecovery = DeserializeAction<StatusRecovery>(root, loaded.StatusRecovery);
+            loaded.AutoRefreshSpammer1 = DeserializeAction<AutoRefreshSpammer>(root, loaded.AutoRefreshSpammer1);
+            loaded.AutoRefreshSpammer2 = DeserializeAction<AutoRefreshSpammer>(root, loaded.AutoRefreshSpammer2);
+            loaded.AutoRefreshSpammer3 = DeserializeAction<AutoRefreshSpammer>(root, loaded.AutoRefreshSpammer3);
+            loaded.Autobuff = DeserializeAction<AutoBuff>(root, loaded.Autobuff);
+            loaded.SongMacro = DeserializeAction<Macro>(root, loaded.SongMacro);
+            loaded.AtkDefMode = DeserializeAction<ATKDEFMode>(root, loaded.AtkDefMode);
+            loaded.MacroSwitch = DeserializeAction<Macro>(root, loaded.MacroSwitch);
+            loaded.DebuffsRecovery = DeserializeAction<DebuffsRecovery>(root, loaded.DebuffsRecovery);
+
+            if (loaded.AHK != null)
+            {
+                loaded.AHK.EnsureSlotsConfigured();
+            }
+
+            return loaded;
+        }
+
+        public static JObject ReadProfileRoot(string filePath, string profileName, bool createIfMissing)
+        {
+            AppConfig.EnsureProfileDirectory();
+
+            if (!File.Exists(filePath))
+            {
+                if (!createIfMissing)
+                {
+                    throw new FileNotFoundException("Profile file not found.", filePath);
+                }
+
+                Console.WriteLine($"[Profile.ReadProfileRoot] Missing file. Creating default profile at \"{filePath}\"");
+                JObject newRoot = BuildCanonicalRoot(new Profile(profileName));
+                WriteProfileRoot(filePath, newRoot, profileName);
+                return newRoot;
+            }
+
+            string json = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                Console.WriteLine($"[Profile.ReadProfileRoot] Empty file at \"{filePath}\". Rebuilding default root.");
+                JObject emptyRoot = BuildCanonicalRoot(new Profile(profileName));
+                WriteProfileRoot(filePath, emptyRoot, profileName);
+                return emptyRoot;
+            }
+
+            try
+            {
+                JToken token = JToken.Parse(json);
+                JObject root = token as JObject;
+                if (root == null)
+                {
+                    throw new JsonException("Profile root is not a JSON object.");
+                }
+
+                Console.WriteLine($"[Profile.ReadProfileRoot] Parsed schema={DetectSchema(root)} from \"{filePath}\"");
+                return root;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Profile.ReadProfileRoot] Malformed profile at \"{filePath}\": {ex.Message}. Rebuilding default root.");
+                JObject fallbackRoot = BuildCanonicalRoot(new Profile(profileName));
+                WriteProfileRoot(filePath, fallbackRoot, profileName);
+                return fallbackRoot;
+            }
+        }
+
+        public static void WriteProfileRoot(string filePath, JObject root, string profileName)
+        {
+            AppConfig.EnsureProfileDirectory();
+            root["Name"] = profileName;
+
+            string output = JsonConvert.SerializeObject(root, Formatting.Indented);
+            File.WriteAllText(filePath, output);
+            VerifySavedProfile(filePath, profileName);
+        }
+
+        public static string DetectSchema(JObject root)
+        {
+            if (root == null)
+            {
+                return "missing";
+            }
+
+            foreach (JProperty property in root.Properties())
+            {
+                if (string.Equals(property.Name, "Name", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (property.Value != null && property.Value.Type == JTokenType.String)
+                {
+                    return "legacy-string";
+                }
+            }
+
+            return "normalized-object";
+        }
+
+        public static JToken ToConfigurationToken(Action action)
+        {
+            if (action == null)
+            {
+                return new JObject();
+            }
+
+            string configuration = action.GetConfiguration();
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new JObject();
+            }
+
+            try
+            {
+                return JToken.Parse(configuration);
+            }
+            catch
+            {
+                return JValue.CreateString(configuration);
+            }
+        }
+
+        public static object GetByAction(dynamic obj, Action action)
+        {
+            if (obj == null || action == null)
+            {
+                return null;
+            }
+
+            JToken token = obj[action.GetActionName()];
+            if (token == null)
+            {
+                return action.GetConfiguration();
+            }
+
+            return token.Type == JTokenType.String ? token.ToString() : token.ToString(Formatting.None);
         }
 
         public static List<string> ListAll()
@@ -242,17 +334,89 @@ namespace _4RTools.Model
             List<string> profiles = new List<string>();
             try
             {
-                string[] files = Directory.GetFiles(AppConfig.ProfileFolder, "*.json");
+                AppConfig.EnsureProfileDirectory();
+                string[] files = Directory.GetFiles(AppConfig.GetProfileDirectory(), "*.json");
 
                 foreach (string fileName in files)
                 {
-                    string profileName = Path.GetFileNameWithoutExtension(fileName);
-                    profiles.Add(profileName);
+                    profiles.Add(Path.GetFileNameWithoutExtension(fileName));
                 }
             }
             catch { }
+
             return profiles;
         }
-    }
 
+        private static Action[] GetAllActions(Profile source)
+        {
+            return new Action[]
+            {
+                source.AHK,
+                source.Autopot,
+                source.AutopotYgg,
+                source.Autobuff,
+                source.StatusRecovery,
+                source.SongMacro,
+                source.MacroSwitch,
+                source.AtkDefMode,
+                source.DebuffsRecovery,
+                source.AutoRefreshSpammer1,
+                source.AutoRefreshSpammer2,
+                source.AutoRefreshSpammer3,
+                source.UserPreferences
+            };
+        }
+
+        private static T DeserializeAction<T>(JObject root, Action fallbackAction) where T : class
+        {
+            string actionName = fallbackAction.GetActionName();
+            JToken token = root[actionName];
+            string payload = fallbackAction.GetConfiguration();
+            string schema = "default";
+
+            if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.Undefined)
+            {
+                if (token.Type == JTokenType.String)
+                {
+                    payload = token.ToString();
+                    schema = "legacy-string";
+                }
+                else
+                {
+                    payload = token.ToString(Formatting.None);
+                    schema = "normalized-object";
+                }
+            }
+
+            Console.WriteLine($"[Profile.DeserializeAction] {actionName}: {schema}");
+
+            try
+            {
+                T action = JsonConvert.DeserializeObject<T>(payload);
+                if (action != null)
+                {
+                    return action;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Profile.DeserializeAction] {actionName} fallback due to parse error: {ex.Message}");
+            }
+
+            return JsonConvert.DeserializeObject<T>(fallbackAction.GetConfiguration());
+        }
+
+        private static void VerifySavedProfile(string filePath, string profileName)
+        {
+            string json = File.ReadAllText(filePath);
+            JObject root = JObject.Parse(json);
+
+            if (root["Name"] == null || root["AHK20"] == null || root["UserPreferences"] == null)
+            {
+                throw new InvalidDataException($"Profile verification failed for \"{profileName}\" at \"{filePath}\".");
+            }
+
+            Console.WriteLine($"[Profile.Verify] Verified \"{profileName}\" at \"{filePath}\"");
+        }
+    }
 }

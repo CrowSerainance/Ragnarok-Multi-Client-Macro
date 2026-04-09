@@ -74,11 +74,12 @@ namespace _4RTools.Forms
             subject.Notify(new Utils.Message(Utils.MessageCode.PROCESS_CHANGED, null));
         }
 
-        private static readonly string LastProfileFile = System.IO.Path.Combine(AppConfig.ProfileFolder, "_last_profile.txt");
+        private static readonly string LastProfileFile = AppConfig.GetLastProfilePath();
 
         private void Container_Load(object sender, EventArgs e)
         {
             Console.WriteLine("[Container_Load] START");
+            AppConfig.EnsureProfileDirectory();
             ProfileSingleton.Create("Default");
             this.refreshProcessList();
             this.refreshProfileList();
@@ -268,12 +269,8 @@ namespace _4RTools.Forms
                 // Save current session under a new filename. Do NOT call Create()+Load() here:
                 // Load() re-reads JSON into the singleton and wipes Skill Spammer (AHK) and other
                 // in-memory edits before we write them back.
-                string path = AppConfig.ProfileFolder + selected + ".json";
-                if (!Directory.Exists(AppConfig.ProfileFolder))
-                {
-                    Directory.CreateDirectory(AppConfig.ProfileFolder);
-                }
-
+                string path = AppConfig.GetProfilePath(selected);
+                AppConfig.EnsureProfileDirectory();
                 if (!File.Exists(path))
                 {
                     File.WriteAllText(path, "{}");
@@ -288,6 +285,7 @@ namespace _4RTools.Forms
             try
             {
                 ProfileSingleton.PersistAllConfiguration();
+                currentProfile = selected;
 
                 try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }

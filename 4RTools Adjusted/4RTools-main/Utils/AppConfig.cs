@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace _4RTools.Utils
 {
@@ -15,5 +16,29 @@ namespace _4RTools.Utils
         public static string _4RLatestVersionURL = "https://api.github.com/repos/4RTools/4RTools/releases/latest";
         public static string _4RApiHost = "https://api.4rtools.com.br/api";
         public static string Version = "v2.10.0";
+
+        public static string GetProfileDirectory()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Profile");
+        }
+
+        public static string GetProfilePath(string profileName)
+        {
+            return Path.Combine(GetProfileDirectory(), profileName + ".json");
+        }
+
+        public static string GetLastProfilePath()
+        {
+            return Path.Combine(GetProfileDirectory(), "_last_profile.txt");
+        }
+
+        public static void EnsureProfileDirectory()
+        {
+            string directory = GetProfileDirectory();
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        }
     }
 }

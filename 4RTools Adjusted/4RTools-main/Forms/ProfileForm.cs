@@ -214,7 +214,7 @@ namespace _4RTools.Forms
             }
 
             string selected = this.lbProfilesList.SelectedItem.ToString();
-            string sourceFile = Path.Combine(AppConfig.ProfileFolder, selected + ".json");
+            string sourceFile = AppConfig.GetProfilePath(selected);
 
             if (!File.Exists(sourceFile))
             {
@@ -264,7 +264,7 @@ namespace _4RTools.Forms
                 }
 
                 string importName = Path.GetFileNameWithoutExtension(dlg.FileName);
-                string destFile = Path.Combine(AppConfig.ProfileFolder, importName + ".json");
+                string destFile = AppConfig.GetProfilePath(importName);
 
                 if (File.Exists(destFile))
                 {
@@ -280,10 +280,7 @@ namespace _4RTools.Forms
 
                 try
                 {
-                    if (!Directory.Exists(AppConfig.ProfileFolder))
-                    {
-                        Directory.CreateDirectory(AppConfig.ProfileFolder);
-                    }
+                    AppConfig.EnsureProfileDirectory();
 
                     File.Copy(dlg.FileName, destFile, true);
                     RefreshAll();
