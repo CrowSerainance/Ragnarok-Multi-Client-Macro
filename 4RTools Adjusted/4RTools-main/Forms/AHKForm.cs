@@ -20,6 +20,7 @@ namespace _4RTools.Forms
         private RadioButton rbAhkSpeedBoost;
         private CheckBox chkMouseFlickGlobal;
         private CheckBox chkNoShiftGlobal;
+        private CheckBox chkNumpadMapping;
         private System.Windows.Forms.Timer stepIndicatorTimer;
 
         public AHKForm(Subject subject)
@@ -41,7 +42,7 @@ namespace _4RTools.Forms
             this.grpClassicSpammer = new GroupBox
             {
                 Location = new Point(12, 158),
-                Size = new Size(536, 72),
+                Size = new Size(536, 92),
                 Text = "Skill Spammer style (stock 4RTools)"
             };
 
@@ -73,15 +74,24 @@ namespace _4RTools.Forms
                 Text = "No-shift (tap Shift around each key)"
             };
 
+            this.chkNumpadMapping = new CheckBox
+            {
+                AutoSize = true,
+                Location = new Point(10, 66),
+                Text = "Numpad mapping (Nav keys trigger Numpad bindings)"
+            };
+
             this.rbAhkCompatibility.CheckedChanged += this.ClassicSpammerOption_Changed;
             this.rbAhkSpeedBoost.CheckedChanged += this.ClassicSpammerOption_Changed;
             this.chkMouseFlickGlobal.CheckedChanged += this.ClassicSpammerOption_Changed;
             this.chkNoShiftGlobal.CheckedChanged += this.ClassicSpammerOption_Changed;
+            this.chkNumpadMapping.CheckedChanged += this.ClassicSpammerOption_Changed;
 
             this.grpClassicSpammer.Controls.Add(this.rbAhkCompatibility);
             this.grpClassicSpammer.Controls.Add(this.rbAhkSpeedBoost);
             this.grpClassicSpammer.Controls.Add(this.chkMouseFlickGlobal);
             this.grpClassicSpammer.Controls.Add(this.chkNoShiftGlobal);
+            this.grpClassicSpammer.Controls.Add(this.chkNumpadMapping);
             this.Controls.Add(this.grpClassicSpammer);
         }
 
@@ -95,6 +105,7 @@ namespace _4RTools.Forms
             AHK ahk = ProfileSingleton.GetCurrent().AHK;
             ahk.mouseFlick = this.chkMouseFlickGlobal.Checked;
             ahk.noShift = this.chkNoShiftGlobal.Checked;
+            ahk.numpadMapping = this.chkNumpadMapping.Checked;
             ahk.ahkMode = this.rbAhkSpeedBoost.Checked ? AHK.SPEED_BOOST : AHK.COMPATIBILITY;
             this.ApplySpeedBoostUiRules();
             PersistAhkConfiguration();
@@ -152,6 +163,7 @@ namespace _4RTools.Forms
                 this.rbAhkSpeedBoost.Checked = speedBoost;
                 this.chkMouseFlickGlobal.Checked = ahk.mouseFlick;
                 this.chkNoShiftGlobal.Checked = ahk.noShift;
+                this.chkNumpadMapping.Checked = ahk.numpadMapping;
                 this.ApplySpeedBoostUiRules();
             }
             finally

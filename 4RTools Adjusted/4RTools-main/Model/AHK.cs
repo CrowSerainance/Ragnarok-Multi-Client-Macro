@@ -720,7 +720,7 @@ namespace _4RTools.Model
 
             for (int i = 0; i < this.Slots.Count && i < SLOT_COUNT; i++)
             {
-                if (IsKeyDown(FormsKeys.LMenu) || IsKeyDown(FormsKeys.RMenu))
+                if (IsRawKeyDown(FormsKeys.LMenu) || IsRawKeyDown(FormsKeys.RMenu))
                 {
                     continue;
                 }
@@ -874,7 +874,7 @@ namespace _4RTools.Model
             cy = p.Y;
         }
 
-        private static bool IsSlotPressed(AhkSlotConfig slot)
+        private bool IsSlotPressed(AhkSlotConfig slot)
         {
             if (slot == null)
             {
@@ -893,7 +893,7 @@ namespace _4RTools.Model
             return IsTriggerBindingPressed(binding);
         }
 
-        private static bool IsTriggerBindingPressed(AhkTriggerBinding binding)
+        private bool IsTriggerBindingPressed(AhkTriggerBinding binding)
         {
             if (binding == null)
             {
@@ -915,8 +915,14 @@ namespace _4RTools.Model
 
         private static bool IsModifierStateEqual(bool expectedDown, FormsKeys leftKey, FormsKeys rightKey)
         {
-            bool isDown = IsKeyDown(leftKey) || IsKeyDown(rightKey);
+            bool isDown = IsRawKeyDown(leftKey) || IsRawKeyDown(rightKey);
             return expectedDown == isDown;
+        }
+
+        /// <summary>Plain key-down check without numpad mapping. Used for modifiers.</summary>
+        private static bool IsRawKeyDown(FormsKeys key)
+        {
+            return (Native.GetAsyncKeyState((int)key) & 0x8000) != 0;
         }
 
         /// <summary>Bidirectional numpad↔nav key map. NumLock OFF causes Windows to report numpad VKs as nav VKs.</summary>
@@ -936,10 +942,16 @@ namespace _4RTools.Model
         private static readonly Dictionary<FormsKeys, FormsKeys> NavToNumpadMap =
             NumpadToNavMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
-        private static bool IsKeyDown(FormsKeys key)
+        /// <summary>Whether to check paired numpad↔nav VKs. Controlled by UI toggle.</summary>
+        public bool numpadMapping { get; set; } = true;
+
+        private bool IsKeyDown(FormsKeys key)
         {
             if ((Native.GetAsyncKeyState((int)key) & 0x8000) != 0)
                 return true;
+
+            if (!numpadMapping)
+                return false;
 
             // NumLock off: numpad keys report as nav keys (and vice versa).
             // Check the paired VK so detection works regardless of NumLock state.
