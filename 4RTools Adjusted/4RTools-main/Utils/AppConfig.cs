@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 
 namespace _4RTools.Utils
 {
@@ -19,7 +20,13 @@ namespace _4RTools.Utils
 
         public static string GetProfileDirectory()
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Profile");
+            string assemblyDirectory = Path.GetDirectoryName(typeof(AppConfig).Assembly.Location);
+            if (string.IsNullOrWhiteSpace(assemblyDirectory))
+            {
+                assemblyDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            }
+
+            return Path.Combine(assemblyDirectory, "Profile");
         }
 
         public static string GetProfilePath(string profileName)

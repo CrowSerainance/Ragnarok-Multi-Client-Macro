@@ -30,6 +30,7 @@ namespace _4RTools.Model
         public Key daggerKey { get; set; }
         public Key instrumentKey { get; set; }
         public int delay { get; set; } = 50;
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public Dictionary<string, MacroKey> macroEntries { get; set; } = new Dictionary<string, MacroKey>();
         public bool infinityLoop { get; set; } = false;
         public bool infinityLoopOn { get; set; } = false;
@@ -87,6 +88,7 @@ namespace _4RTools.Model
 
         public string actionName { get; set; }
         private _4RThread thread;
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public List<ChainConfig> chainConfigs { get; set; } = new List<ChainConfig>();
 
         /// <summary>

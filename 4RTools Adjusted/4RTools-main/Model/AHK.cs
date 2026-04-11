@@ -79,15 +79,18 @@ namespace _4RTools.Model
         public bool Win { get; set; }
 
         /// <summary>At most one entry kept in sync with root trigger fields (JSON compatibility).</summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public List<AhkTriggerBinding> TriggerBindings { get; set; } = new List<AhkTriggerBinding>();
 
         /// <summary>First hotkey for legacy JSON readers; kept in sync with <see cref="SkillKeys"/>[0].</summary>
         public string SkillKey { get; set; } = FormsKeys.None.ToString();
 
         /// <summary>Plain key names for backward compat; kept in sync with <see cref="SkillBindings"/>.</summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public List<string> SkillKeys { get; set; } = new List<string>();
 
         /// <summary>Skill bar hotkeys with optional modifiers. JSON property name unchanged for profile compatibility.</summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public List<AhkSkillBinding> SkillBindings { get; set; } = new List<AhkSkillBinding>();
 
         public bool Enabled { get; set; }
@@ -489,7 +492,9 @@ namespace _4RTools.Model
         private volatile bool _stopped;
 
         // Legacy checkbox mappings kept for backward-compatible profile migration.
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public Dictionary<string, KeyConfig> AhkEntries { get; set; } = new Dictionary<string, KeyConfig>();
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public List<AhkSlotConfig> Slots { get; set; } = CreateDefaultSlots();
 
         /// <summary>Classic Skill Spammer modes (same names as stock 4RTools).</summary>

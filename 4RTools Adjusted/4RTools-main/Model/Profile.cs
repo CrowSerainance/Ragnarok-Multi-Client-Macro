@@ -70,6 +70,7 @@ namespace _4RTools.Model
             if (oldProfileName != "Default" && File.Exists(oldPath) && !File.Exists(newPath))
             {
                 File.Move(oldPath, newPath);
+                Profile.NormalizeProfileFileName(newPath, newProfileName);
             }
         }
 
@@ -84,6 +85,7 @@ namespace _4RTools.Model
                 if (File.Exists(sourcePath) && !File.Exists(destinationPath))
                 {
                     File.Copy(sourcePath, destinationPath);
+                    Profile.NormalizeProfileFileName(destinationPath, copyName);
                 }
             }
             catch { }
@@ -186,7 +188,7 @@ namespace _4RTools.Model
         public static Profile DeserializeRoot(JObject root, string profileName)
         {
             Profile loaded = new Profile(profileName);
-            loaded.Name = (string)root["Name"] ?? profileName;
+            loaded.Name = profileName;
 
             loaded.UserPreferences = DeserializeAction<UserPreferences>(root, loaded.UserPreferences);
             loaded.AHK = DeserializeAction<AHK>(root, loaded.AHK);
@@ -417,6 +419,21 @@ namespace _4RTools.Model
             }
 
             Console.WriteLine($"[Profile.Verify] Verified \"{profileName}\" at \"{filePath}\"");
+        }
+
+        internal static void NormalizeProfileFileName(string filePath, string profileName)
+        {
+            try
+            {
+                JObject root = ReadProfileRoot(filePath, profileName, createIfMissing: true);
+                root["Name"] = profileName;
+                string output = JsonConvert.SerializeObject(root, Formatting.Indented);
+                File.WriteAllText(filePath, output);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Profile.NormalizeProfileFileName] Skipped for \"{filePath}\": {ex.Message}");
+            }
         }
     }
 }
