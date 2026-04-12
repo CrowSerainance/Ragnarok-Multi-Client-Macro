@@ -95,6 +95,8 @@ namespace _4RTools.Model
         public int currentHPBaseAddress { get; set; }
         private int statusBufferAddress { get; set; }
 
+        public AddressConfig AddressConfig { get; private set; }
+
         public Client(string processName, int currentHPBaseAddress, int currentNameAddress)
         {
             this.currentNameAddress = currentNameAddress;
@@ -121,9 +123,8 @@ namespace _4RTools.Model
             if (this.processManager.Attach(chosenPid))
             {
                 this.memory = new MemoryReader(this.processManager);
-                // Use default Ragna4th mouse offsets for now
-                var addrConfig = new AddressConfig();
-                this.input = new InputSimulator(this.processManager, this.memory, addrConfig.MousePosX, addrConfig.MousePosY);
+                this.AddressConfig = AddressConfig.LoadOrDefault();
+                this.input = new InputSimulator(this.processManager, this.memory, this.AddressConfig.MousePosX, this.AddressConfig.MousePosY);
 
                 try
                 {

@@ -1,3 +1,4 @@
+using System.IO;
 using Newtonsoft.Json;
 
 namespace _4RTools.Utils.MuhBotCore;
@@ -137,36 +138,34 @@ public class AddressConfig
     [JsonProperty("skillWindowOpen")]
     public int SkillWindowOpen { get; set; } = 0;
 
-    [JsonProperty("partyCount")]
-    public int PartyCount { get; set; } = 0;
-
-    [JsonProperty("partyListBase")]
-    public int PartyListBase { get; set; } = 0;
-
-    [JsonProperty("partyEntryStride")]
-    public int PartyEntryStride { get; set; } = 0;
-
-    [JsonProperty("partyMemberIdOffset")]
-    public int PartyMemberIdOffset { get; set; } = 0;
-
-    [JsonProperty("partyMemberNameOffset")]
-    public int PartyMemberNameOffset { get; set; } = 0;
-
-    [JsonProperty("partyMemberMapOffset")]
-    public int PartyMemberMapOffset { get; set; } = 0;
-
-    [JsonProperty("partyMemberXOffset")]
-    public int PartyMemberXOffset { get; set; } = 0;
-
-    [JsonProperty("partyMemberYOffset")]
-    public int PartyMemberYOffset { get; set; } = 0;
-
-    [JsonProperty("partyMemberOnlineOffset")]
-    public int PartyMemberOnlineOffset { get; set; } = 0;
-
     /// <summary>
     /// Offset from HP base to buff array (stable across Ragexe). Used by scanner.
     /// </summary>
     [JsonProperty("buffArrayOffsetFromHpBase")]
     public int BuffArrayOffsetFromHpBase { get; set; } = 0x474;
+
+    // ── Persistence ──────────────────────────────────────────────
+
+    private static readonly string DefaultPath = Path.Combine(".", "addresses.json");
+
+    public static AddressConfig LoadOrDefault(string path = null)
+    {
+        path = path ?? DefaultPath;
+        try
+        {
+            if (File.Exists(path))
+            {
+                string json = File.ReadAllText(path);
+                return JsonConvert.DeserializeObject<AddressConfig>(json) ?? new AddressConfig();
+            }
+        }
+        catch { }
+        return new AddressConfig();
+    }
+
+    public void Save(string path = null)
+    {
+        path = path ?? DefaultPath;
+        File.WriteAllText(path, JsonConvert.SerializeObject(this, Formatting.Indented));
+    }
 }
