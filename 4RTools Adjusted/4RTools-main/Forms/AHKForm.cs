@@ -279,12 +279,23 @@ namespace _4RTools.Forms
                 };
                 clearButton.Click += this.ClearButton_Click;
 
+                Button resetButton = new Button
+                {
+                    Location = new Point(486, 1),
+                    Size = new Size(28, 22),
+                    Text = "↺",
+                    Tag = slotIndex,
+                    Font = new Font(this.Font.FontFamily, 8f, FontStyle.Bold)
+                };
+                resetButton.Click += this.ResetButton_Click;
+
                 rowPanel.Controls.Add(slotLabel);
                 rowPanel.Controls.Add(stepLabel);
                 rowPanel.Controls.Add(bindingTextBox);
                 rowPanel.Controls.Add(bindButton);
                 rowPanel.Controls.Add(enabledCheckBox);
                 rowPanel.Controls.Add(clearButton);
+                rowPanel.Controls.Add(resetButton);
                 this.panelSlots.Controls.Add(rowPanel);
 
                 this.slotRows.Add(new SlotRowControls
@@ -350,6 +361,17 @@ namespace _4RTools.Forms
         {
             int slotIndex = (int)((Control)sender).Tag;
             ClearSlot(slotIndex);
+        }
+
+        private void ResetButton_Click(object sender, EventArgs e)
+        {
+            int slotIndex = (int)((Control)sender).Tag;
+            AHK ahk = ProfileSingleton.GetCurrent().AHK;
+            ahk.EnsureSlotsConfigured();
+
+            AhkSlotConfig slot = ahk.Slots[slotIndex];
+            slot.currentStep = 0;
+            slot.lastFiredStep = 0;
         }
 
         private void ClearSlot(int slotIndex)
