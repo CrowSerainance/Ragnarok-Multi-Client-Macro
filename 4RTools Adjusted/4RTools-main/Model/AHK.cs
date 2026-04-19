@@ -101,6 +101,9 @@ namespace _4RTools.Model
         /// <summary>Click at cursor after each skill key to confirm targeting. Default on.</summary>
         public bool ClickActive { get; set; } = true;
 
+        /// <summary>When true, holding the trigger auto-cycles through skill keys paced by <see cref="InterSkillDelayMs"/>.</summary>
+        public bool LoopMode { get; set; }
+
         /// <summary>Cycles through skill keys one-per-press so the game's aftercast delay is respected.</summary>
         [JsonIgnore]
         public volatile int currentStep;
@@ -108,6 +111,10 @@ namespace _4RTools.Model
         /// <summary>1-based index of the last key that was actually fired. Used by the UI step indicator.</summary>
         [JsonIgnore]
         public volatile int lastFiredStep;
+
+        /// <summary>Environment.TickCount of the last fire in LoopMode. 0 = not yet fired this hold.</summary>
+        [JsonIgnore]
+        public volatile int lastFireTicks;
 
         [JsonIgnore]
         public bool HasBinding =>
@@ -682,6 +689,7 @@ namespace _4RTools.Model
                     {
                         slot.currentStep = 0;
                         slot.lastFiredStep = 0;
+                        slot.lastFireTicks = 0;
                     }
                 }
             }
@@ -742,16 +750,32 @@ namespace _4RTools.Model
                 if (!isPressed)
                 {
                     _wasDown[i] = false;
+                    slot.lastFireTicks = 0;
                     continue;
                 }
 
-                // Rising edge: only fire on the transition from UP → DOWN.
-                if (_wasDown[i])
+                if (slot.LoopMode)
                 {
-                    continue; // key is still held from a previous press — ignore
-                }
+                    // Hold-to-cycle: first press fires immediately, then pace by InterSkillDelayMs.
+                    int now = Environment.TickCount;
+                    bool firstPress = !_wasDown[i];
+                    _wasDown[i] = true;
 
-                _wasDown[i] = true; // mark as down so we don't fire again until released
+                    if (!firstPress && unchecked(now - slot.lastFireTicks) < slot.InterSkillDelayMs)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    // Rising edge: only fire on the transition from UP → DOWN.
+                    if (_wasDown[i])
+                    {
+                        continue; // key is still held from a previous press — ignore
+                    }
+
+                    _wasDown[i] = true; // mark as down so we don't fire again until released
+                }
 
                 // Deduplicate: two slots with same trigger → only first fires.
                 string triggerSignature = BuildTriggerSignature(slot);
@@ -763,6 +787,11 @@ namespace _4RTools.Model
 
                 // Fire the current step key and advance.
                 FireCurrentStepKey(roClient, slot);
+
+                if (slot.LoopMode)
+                {
+                    slot.lastFireTicks = Environment.TickCount;
+                }
             }
 
             return 0;

@@ -766,6 +766,7 @@ namespace _4RTools.Forms
             private readonly ListBox listSkills;
             private readonly NumericUpDown nudDelay;
             private readonly CheckBox chkClickActive;
+            private readonly CheckBox chkLoopMode;
             private readonly Label lblStatus;
             private readonly Button btnOk;
             private AhkTriggerBinding workingTrigger;
@@ -820,7 +821,7 @@ namespace _4RTools.Forms
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(392, 334);
+                this.ClientSize = new Size(392, 358);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
@@ -930,10 +931,18 @@ namespace _4RTools.Forms
                 };
                 this.chkClickActive.Checked = current.ClickActive;
 
+                this.chkLoopMode = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 270),
+                    Text = "Loop while held (auto-cycle keys, paced by Pause)"
+                };
+                this.chkLoopMode.Checked = current.LoopMode;
+
                 this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 272),
+                    Location = new Point(12, 296),
                     Size = new Size(368, 18),
                     ForeColor = System.Drawing.SystemColors.GrayText,
                     Text = ""
@@ -942,7 +951,7 @@ namespace _4RTools.Forms
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(12, 300),
+                    Location = new Point(12, 324),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -950,14 +959,14 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(230, 300),
+                    Location = new Point(230, 324),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
                 this.btnOk = new Button
                 {
-                    Location = new Point(310, 300),
+                    Location = new Point(310, 324),
                     Size = new Size(70, 24),
                     Text = "OK"
                 };
@@ -976,6 +985,7 @@ namespace _4RTools.Forms
                 this.Controls.Add(this.nudDelay);
                 this.Controls.Add(lblDelayHint);
                 this.Controls.Add(this.chkClickActive);
+                this.Controls.Add(this.chkLoopMode);
                 this.Controls.Add(this.lblStatus);
                 this.Controls.Add(btnClear);
                 this.Controls.Add(btnCancel);
@@ -1001,6 +1011,7 @@ namespace _4RTools.Forms
                 slot.Win = this.workingTrigger.Win;
                 slot.InterSkillDelayMs = this.workingInterSkillDelayMs;
                 slot.ClickActive = this.chkClickActive.Checked;
+                slot.LoopMode = this.chkLoopMode.Checked;
                 slot.TriggerBindings = new List<AhkTriggerBinding>
                 {
                     new AhkTriggerBinding
