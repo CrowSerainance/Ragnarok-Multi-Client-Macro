@@ -485,6 +485,13 @@ namespace _4RTools.Model
         /// <summary>Minimum pause between keys in a chain (ms). Property name unchanged for JSON.</summary>
         public const int InterSkillDelayMinMs = 20;
 
+        /// <summary>
+        /// Minimum pace for <see cref="AhkSlotConfig.LoopMode"/>. Combined with ~55-100 ms Gaussian hold in
+        /// <c>InputSimulator.SendKey</c> this lands near one RO aftercast cycle (~150-180 ms real-world).
+        /// Non-loop chain pacing keeps the lower 20 ms floor so existing profiles don't regress.
+        /// </summary>
+        public const int LoopModeDelayMinMs = 80;
+
         /// <summary>Maximum pause between keys in bind UI and chain execution (ms).</summary>
         public const int InterSkillDelayMaxMs = 500;
 
@@ -613,8 +620,9 @@ namespace _4RTools.Model
                 }
 
                 this.Slots[i].EnsureSlotModelConsistent();
+                int minDelay = this.Slots[i].LoopMode ? LoopModeDelayMinMs : InterSkillDelayMinMs;
                 this.Slots[i].InterSkillDelayMs = Math.Max(
-                    InterSkillDelayMinMs,
+                    minDelay,
                     Math.Min(this.Slots[i].InterSkillDelayMs, InterSkillDelayMaxMs));
             }
 
@@ -656,8 +664,9 @@ namespace _4RTools.Model
             }
 
             slot.EnsureSlotModelConsistent();
+            int minDelay = slot.LoopMode ? LoopModeDelayMinMs : InterSkillDelayMinMs;
             slot.InterSkillDelayMs = Math.Max(
-                InterSkillDelayMinMs,
+                minDelay,
                 Math.Min(slot.InterSkillDelayMs, InterSkillDelayMaxMs));
 
             this.Slots[index] = slot;
@@ -715,11 +724,10 @@ namespace _4RTools.Model
         }
 
         /// <summary>
-        /// <summary>
-        /// Poll callback (every 5ms). Pure rising-edge trigger detection.
-        /// Each press of the trigger fires the next key in the cycle and advances the step.
-        /// Release the trigger and press again to fire the next key.
-        /// No hold-down logic, no retry, no idle gating — one press = one fire = one advance.
+        /// Poll callback (every 5ms). Rising-edge trigger detection plus optional hold-to-cycle LoopMode.
+        /// Non-loop: one press = one fire = one advance. LoopMode: hold cycles keys paced by
+        /// <see cref="AhkSlotConfig.InterSkillDelayMs"/> and gated on <see cref="Client.IsPlayerIdle"/>
+        /// so we respect the game's aftercast delay.
         /// </summary>
         private int AHKThreadExecution()
         {
@@ -785,6 +793,15 @@ namespace _4RTools.Model
                     continue;
                 }
 
+                // LoopMode idle gate: skip while the character is walking / casting / attacking so
+                // we pace to actual aftercast instead of the fixed ms floor. Fail-open when the
+                // pointer chain can't be resolved (IsPlayerIdle returns true). Rising-edge
+                // (single-press) path intentionally bypasses this — one press should always fire.
+                if (slot.LoopMode && !roClient.IsPlayerIdle())
+                {
+                    continue;
+                }
+
                 // Fire the current step key and advance.
                 FireCurrentStepKey(roClient, slot);
 
@@ -799,7 +816,9 @@ namespace _4RTools.Model
 
         /// <summary>
         /// Fires the current key in the slot's cycle and advances the step counter.
-        /// Called once per trigger press. Always fires and always advances — no gating.
+        /// Invariant: caller is responsible for idle / busy-state gating. This method always fires
+        /// and always advances — do not move <c>IsPlayerIdle</c> checks inside here, otherwise the
+        /// step counter will skip whenever the character is busy.
         /// </summary>
         private void FireCurrentStepKey(Client roClient, AhkSlotConfig slot)
         {

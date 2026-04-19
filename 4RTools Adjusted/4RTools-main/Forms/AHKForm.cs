@@ -812,8 +812,9 @@ namespace _4RTools.Forms
                     Win = current.Win
                 };
 
+                int workingMinDelay = current.LoopMode ? AHK.LoopModeDelayMinMs : AHK.InterSkillDelayMinMs;
                 this.workingInterSkillDelayMs = Math.Max(
-                    AHK.InterSkillDelayMinMs,
+                    workingMinDelay,
                     Math.Min(current.InterSkillDelayMs, AHK.InterSkillDelayMaxMs));
 
                 this.Text = "Bind Slot";
