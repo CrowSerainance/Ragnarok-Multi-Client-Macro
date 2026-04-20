@@ -505,6 +505,41 @@ namespace _4RTools.Model
         [JsonIgnore]
         private volatile bool _stopped;
 
+        /// <summary>Per-slot fire worker. Decouples send latency from the poll thread (Tier 2A).</summary>
+        [JsonIgnore]
+        private Task[] _slotWorkers;
+
+        /// <summary>Per-slot fire signal. Max count 1 — coalesces repeated signals into "there is work".</summary>
+        [JsonIgnore]
+        private SemaphoreSlim[] _slotSignals;
+
+        /// <summary>Wakes all slot workers when AHK stops.</summary>
+        [JsonIgnore]
+        private CancellationTokenSource _workerCts;
+
+        /// <summary>Global send lock: serializes worker fires so concurrent PostMessage bursts don't stack.</summary>
+        [JsonIgnore]
+        private static readonly object _globalSendLock = new object();
+
+        /// <summary>
+        /// Minimum gap between any two worker fires across all slots (Tier 2B). Caps total app
+        /// PostMessage rate at ~28 Hz so 10 simultaneously-active slots don't paint a visible burst
+        /// pattern on the wire. Single-slot users see no effect — InputSimulator's own ~55-100 ms
+        /// Gaussian hold already exceeds this gap.
+        /// </summary>
+        public const int GlobalMinGapMs = 35;
+
+        /// <summary>Upper bound for additional uniform jitter added to the throttle wait.</summary>
+        public const int GlobalThrottleJitterMaxMs = 15;
+
+        /// <summary>Environment.TickCount of the last worker fire. Read/written under <see cref="_globalSendLock"/>.</summary>
+        [JsonIgnore]
+        private static int _lastGlobalSendTick;
+
+        /// <summary>RNG for global throttle jitter. Accessed only under <see cref="_globalSendLock"/>.</summary>
+        [JsonIgnore]
+        private static readonly Random _globalThrottleRng = new Random();
+
         // Legacy checkbox mappings kept for backward-compatible profile migration.
         [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public Dictionary<string, KeyConfig> AhkEntries { get; set; } = new Dictionary<string, KeyConfig>();
@@ -676,35 +711,47 @@ namespace _4RTools.Model
         {
             EnsureSlotsConfigured();
 
-            // Signal in-flight workers to bail out of sleeps / chain loops.
-            this._stopped = true;
-            try
+            // Tear down any previous run (poll thread + workers) before starting fresh.
+            StopInternal();
+
+            this._stopped = false;
+
+            // Reset all per-slot state (step counters, rising-edge flags, pacing timestamps).
+            for (int i = 0; i < SLOT_COUNT; i++)
             {
-                if (this.thread != null)
-                {
-                    _4RThread.Stop(this.thread);
-                }
+                _wasDown[i] = false;
+            }
 
-                // Reset all per-slot state.
-                for (int i = 0; i < SLOT_COUNT; i++)
+            foreach (var slot in this.Slots)
+            {
+                if (slot != null)
                 {
-                    _wasDown[i] = false;
-                }
-
-                // Reset every slot's step counter so the cycle always starts from key 1.
-                foreach (var slot in this.Slots)
-                {
-                    if (slot != null)
-                    {
-                        slot.currentStep = 0;
-                        slot.lastFiredStep = 0;
-                        slot.lastFireTicks = 0;
-                    }
+                    slot.currentStep = 0;
+                    slot.lastFiredStep = 0;
+                    slot.lastFireTicks = 0;
                 }
             }
-            finally
+
+            // Reset global throttle so the first fire after a fresh Start isn't held back by a
+            // stale timestamp from a previous run.
+            lock (_globalSendLock)
             {
-                this._stopped = false;
+                _lastGlobalSendTick = 0;
+            }
+
+            // Build fresh worker infrastructure. One Task per slot with a coalescing semaphore
+            // (max count 1). Poll thread signals a semaphore; worker wakes, re-verifies state,
+            // and fires under the global send lock.
+            _workerCts = new CancellationTokenSource();
+            CancellationToken ct = _workerCts.Token;
+
+            _slotSignals = new SemaphoreSlim[SLOT_COUNT];
+            _slotWorkers = new Task[SLOT_COUNT];
+            for (int i = 0; i < SLOT_COUNT; i++)
+            {
+                _slotSignals[i] = new SemaphoreSlim(0, 1);
+                int captured = i;
+                _slotWorkers[i] = Task.Run(() => WorkerLoop(captured, ct), ct);
             }
 
             this.thread = new _4RThread(_ => AHKThreadExecution());
@@ -802,13 +849,17 @@ namespace _4RTools.Model
                     continue;
                 }
 
-                // Fire the current step key and advance.
-                FireCurrentStepKey(roClient, slot);
-
+                // Stamp fire time BEFORE signaling so the next poll tick honors InterSkillDelayMs
+                // even while the worker is still holding the global send lock.
                 if (slot.LoopMode)
                 {
                     slot.lastFireTicks = Environment.TickCount;
                 }
+
+                // Hand off to the per-slot worker. Detection stays on this poll thread; the ~55-100 ms
+                // Gaussian hold inside SendKey runs on a dedicated Task, so one slow slot can't starve
+                // release detection or pacing for the others.
+                SignalSlotFire(i);
             }
 
             return 0;
@@ -1103,11 +1154,157 @@ namespace _4RTools.Model
 
         public void Stop()
         {
+            StopInternal();
+        }
+
+        /// <summary>
+        /// Full teardown: cancels worker token, releases semaphores so workers wake and observe
+        /// cancellation, stops the poll thread, joins workers with a 500 ms timeout, and clears
+        /// worker infrastructure. Safe to call when nothing is running.
+        /// </summary>
+        private void StopInternal()
+        {
             this._stopped = true;
-            _4RThread.Stop(this.thread);
+
+            CancellationTokenSource cts = _workerCts;
+            if (cts != null)
+            {
+                try { cts.Cancel(); }
+                catch (ObjectDisposedException) { }
+            }
+
+            SemaphoreSlim[] sigs = _slotSignals;
+            if (sigs != null)
+            {
+                for (int i = 0; i < sigs.Length; i++)
+                {
+                    SemaphoreSlim sem = sigs[i];
+                    if (sem == null) continue;
+                    try
+                    {
+                        if (sem.CurrentCount == 0) sem.Release();
+                    }
+                    catch (SemaphoreFullException) { }
+                    catch (ObjectDisposedException) { }
+                }
+            }
+
+            if (this.thread != null)
+            {
+                _4RThread.Stop(this.thread);
+            }
+
+            Task[] workers = _slotWorkers;
+            if (workers != null)
+            {
+                try
+                {
+                    Task[] nonNull = workers.Where(t => t != null).ToArray();
+                    if (nonNull.Length > 0)
+                    {
+                        Task.WaitAll(nonNull, 500);
+                    }
+                }
+                catch (AggregateException) { /* OperationCanceledException is expected */ }
+            }
+
+            // Drop references; let GC clean up semaphores / CTS. Avoiding Dispose here prevents
+            // ObjectDisposedException races if a worker missed cancellation.
+            _workerCts = null;
+            _slotSignals = null;
+            _slotWorkers = null;
+
             for (int i = 0; i < SLOT_COUNT; i++)
             {
                 _wasDown[i] = false;
+            }
+        }
+
+        /// <summary>
+        /// Sleeps the calling worker until at least <see cref="GlobalMinGapMs"/> + small jitter has
+        /// elapsed since the last global fire. Caller MUST hold <see cref="_globalSendLock"/>.
+        /// First fire (timestamp 0) and TickCount wraparound (negative elapsed) skip the wait.
+        /// </summary>
+        private void ApplyGlobalThrottle()
+        {
+            int last = _lastGlobalSendTick;
+            if (last == 0) return;
+
+            int elapsed = unchecked(Environment.TickCount - last);
+            if (elapsed < 0 || elapsed >= GlobalMinGapMs) return;
+
+            int jitter = _globalThrottleRng.Next(0, GlobalThrottleJitterMaxMs + 1);
+            int wait = (GlobalMinGapMs - elapsed) + jitter;
+
+            // SleepWhileRunning chunks at 15 ms and bails on _stopped.
+            SleepWhileRunning(wait);
+        }
+
+        /// <summary>Wake the worker for <paramref name="slotIndex"/> if it is idle. No-op if already signalled.</summary>
+        private void SignalSlotFire(int slotIndex)
+        {
+            SemaphoreSlim[] sigs = _slotSignals;
+            if (sigs == null || slotIndex < 0 || slotIndex >= sigs.Length) return;
+
+            SemaphoreSlim sem = sigs[slotIndex];
+            if (sem == null) return;
+
+            try
+            {
+                if (sem.CurrentCount == 0)
+                {
+                    sem.Release();
+                }
+            }
+            catch (SemaphoreFullException) { /* coalesced: a pending fire is already queued */ }
+            catch (ObjectDisposedException) { /* raced with Stop — ignore */ }
+        }
+
+        /// <summary>
+        /// Per-slot worker loop. Awaits its signal, re-verifies slot state and idle gate, then
+        /// fires under the global send lock so concurrent workers don't stack PostMessage bursts.
+        /// Exits on cancellation or <see cref="_stopped"/>.
+        /// </summary>
+        private void WorkerLoop(int slotIndex, CancellationToken ct)
+        {
+            SemaphoreSlim[] sigs = _slotSignals;
+            SemaphoreSlim sem = (sigs != null && slotIndex < sigs.Length) ? sigs[slotIndex] : null;
+            if (sem == null) return;
+
+            while (!ct.IsCancellationRequested && !_stopped)
+            {
+                try
+                {
+                    sem.Wait(ct);
+                }
+                catch (OperationCanceledException) { return; }
+                catch (ObjectDisposedException) { return; }
+
+                if (ct.IsCancellationRequested || _stopped) return;
+
+                if (slotIndex >= this.Slots.Count) continue;
+                AhkSlotConfig slot = this.Slots[slotIndex];
+                if (slot == null) continue;
+
+                Client roClient = ClientSingleton.GetClient();
+                if (roClient == null) continue;
+
+                // Defensive re-check: trigger may have been released between signal and wake.
+                if (!slot.HasBinding || !IsSlotPressed(slot)) continue;
+
+                // Re-check idle gate at fire time (state may have changed since poll thread signalled).
+                if (slot.LoopMode && !roClient.IsPlayerIdle()) continue;
+
+                lock (_globalSendLock)
+                {
+                    if (_stopped || ct.IsCancellationRequested) return;
+
+                    ApplyGlobalThrottle();
+
+                    FireCurrentStepKey(roClient, slot);
+
+                    _lastGlobalSendTick = Environment.TickCount;
+                }
             }
         }
 
