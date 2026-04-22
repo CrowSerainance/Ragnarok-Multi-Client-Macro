@@ -870,8 +870,10 @@ namespace _4RTools.Model
         /// Invariant: caller is responsible for idle / busy-state gating. This method always fires
         /// and always advances — do not move <c>IsPlayerIdle</c> checks inside here, otherwise the
         /// step counter will skip whenever the character is busy.
+        /// <paramref name="ct"/> propagates worker cancellation into <see cref="InputSimulator.SendKey"/>
+        /// so a Stop() during a Gaussian hold wakes immediately (matching WM_KEYUP still posts).
         /// </summary>
-        private void FireCurrentStepKey(Client roClient, AhkSlotConfig slot)
+        private void FireCurrentStepKey(Client roClient, AhkSlotConfig slot, CancellationToken ct = default)
         {
             if (this._stopped)
             {
@@ -907,7 +909,7 @@ namespace _4RTools.Model
                 InputAutomationStopProtocol.EnterExclusiveAutomation();
                 try
                 {
-                    FireVanillaSkillStep(live, slot, key, vk, speedBoost);
+                    FireVanillaSkillStep(live, slot, key, vk, speedBoost, ct);
                 }
                 catch (Exception ex)
                 {
@@ -925,7 +927,7 @@ namespace _4RTools.Model
         }
 
         /// <summary>Matches stock <c>FireOnceWithClick</c> / <c>FireOnceSpeedBoost</c> / <c>FireOnceKeyOnly</c> behavior.</summary>
-        private void FireVanillaSkillStep(Client roClient, AhkSlotConfig slot, AhkSkillBinding binding, int vk, bool speedBoost)
+        private void FireVanillaSkillStep(Client roClient, AhkSlotConfig slot, AhkSkillBinding binding, int vk, bool speedBoost, CancellationToken ct = default)
         {
             if (this.noShift)
             {
@@ -934,11 +936,11 @@ namespace _4RTools.Model
 
             if (binding.Ctrl || binding.Alt || binding.Shift)
             {
-                roClient.input.SendKeyChord(vk, binding.Ctrl, binding.Alt, binding.Shift, false, true);
+                roClient.input.SendKeyChord(vk, binding.Ctrl, binding.Alt, binding.Shift, false, true, ct);
             }
             else
             {
-                roClient.input.SendKey(vk, true);
+                roClient.input.SendKey(vk, true, ct);
             }
 
             if (slot.ClickActive)
@@ -1301,7 +1303,7 @@ namespace _4RTools.Model
 
                     ApplyGlobalThrottle();
 
-                    FireCurrentStepKey(roClient, slot);
+                    FireCurrentStepKey(roClient, slot, ct);
 
                     _lastGlobalSendTick = Environment.TickCount;
                 }

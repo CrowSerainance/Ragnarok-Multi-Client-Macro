@@ -70,10 +70,27 @@ public class InputSimulator
     }
 
     /// <summary>
-    /// Send key down and key up with random delay (anti-detection). Use noDelay: true for NDL mode (minimal delay).
-    /// Resolves window handle once so both down and up go to the same target.
+    /// Sleep that wakes immediately if <paramref name="ct"/> is cancelled. Returns true if cancelled.
+    /// Falls back to plain Thread.Sleep when the token isn't cancellable so non-Spammer callers pay no overhead.
     /// </summary>
-    public void SendKey(int vkCode, bool noDelay = false)
+    private static bool CancellableSleep(int ms, CancellationToken ct)
+    {
+        if (ms <= 0) return ct.IsCancellationRequested;
+        if (!ct.CanBeCanceled)
+        {
+            Thread.Sleep(ms);
+            return false;
+        }
+        return ct.WaitHandle.WaitOne(ms);
+    }
+
+    /// <summary>
+    /// Send key down and key up with random delay (anti-detection). Use noDelay: true for NDL mode (minimal delay).
+    /// Resolves window handle once so both down and up go to the same target. When <paramref name="ct"/>
+    /// is cancellable, the inter-press hold is interruptible — the matching WM_KEYUP is still posted so
+    /// the game never sees a stuck key.
+    /// </summary>
+    public void SendKey(int vkCode, bool noDelay = false, CancellationToken ct = default)
     {
         IntPtr hWnd = ResolveWindowHandle();
         if (hWnd == IntPtr.Zero) return;
@@ -82,11 +99,15 @@ public class InputSimulator
         uint lParamUp = BuildKeyUpLParam(vkCode);
 
         Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
-        if (noDelay)
-            Thread.Sleep(_rng.Next(8, 15));
-        else
-            Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+        try
+        {
+            int holdMs = noDelay ? _rng.Next(8, 15) : GaussianDelay(55, 15, 25, 100);
+            CancellableSleep(holdMs, ct);
+        }
+        finally
+        {
+            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+        }
     }
 
     /// <summary>
@@ -124,29 +145,43 @@ public class InputSimulator
         Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)ctrlVk, (IntPtr)BuildKeyUpLParam(ctrlVk));
     }
 
-    public void SendKeyChord(int vkCode, bool ctrl, bool alt, bool shift, bool win, bool noDelay = false)
+    /// <summary>
+    /// Modifier chord via PostMessage. When <paramref name="ct"/> is cancellable, the inter-press hold
+    /// is interruptible, but matching WM_KEYUPs are always posted (in reverse order) so no key gets stuck.
+    /// </summary>
+    public void SendKeyChord(int vkCode, bool ctrl, bool alt, bool shift, bool win, bool noDelay = false, CancellationToken ct = default)
     {
         IntPtr hWnd = ResolveWindowHandle();
         if (hWnd == IntPtr.Zero) return;
 
         int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
-        foreach (int modifier in modifiers)
+        int modsPressed = 0;
+        bool mainPressed = false;
+        try
         {
-            Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)modifier, (IntPtr)BuildKeyDownLParam(modifier));
-            Thread.Sleep(_rng.Next(5, 12));
+            foreach (int modifier in modifiers)
+            {
+                Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)modifier, (IntPtr)BuildKeyDownLParam(modifier));
+                modsPressed++;
+                if (CancellableSleep(_rng.Next(5, 12), ct)) return;
+            }
+
+            Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
+            mainPressed = true;
+            int holdMs = noDelay ? _rng.Next(8, 15) : GaussianDelay(55, 15, 25, 100);
+            CancellableSleep(holdMs, ct);
         }
-
-        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
-        if (noDelay)
-            Thread.Sleep(_rng.Next(8, 15));
-        else
-            Thread.Sleep(GaussianDelay(55, 15, 25, 100));
-        Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
-
-        for (int i = modifiers.Length - 1; i >= 0; i--)
+        finally
         {
-            Thread.Sleep(_rng.Next(5, 12));
-            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
+            if (mainPressed)
+            {
+                Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
+            }
+            for (int i = modsPressed - 1; i >= 0; i--)
+            {
+                Thread.Sleep(_rng.Next(5, 12));
+                Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)modifiers[i], (IntPtr)BuildKeyUpLParam(modifiers[i]));
+            }
         }
     }
 
