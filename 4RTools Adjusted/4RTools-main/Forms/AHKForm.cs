@@ -770,6 +770,12 @@ namespace _4RTools.Forms
             private readonly Label lblPerKeyHint;
             private readonly CheckBox chkClickActive;
             private readonly CheckBox chkLoopMode;
+            private readonly CheckBox chkMinHp;
+            private readonly NumericUpDown nudMinHp;
+            private readonly CheckBox chkMaxHp;
+            private readonly NumericUpDown nudMaxHp;
+            private readonly CheckBox chkMinSp;
+            private readonly NumericUpDown nudMinSp;
             private readonly Label lblStatus;
             private readonly Button btnOk;
             private AhkTriggerBinding workingTrigger;
@@ -839,7 +845,7 @@ namespace _4RTools.Forms
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(392, 386);
+                this.ClientSize = new Size(392, 464);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
@@ -985,10 +991,89 @@ namespace _4RTools.Forms
                 };
                 this.chkLoopMode.Checked = current.LoopMode;
 
+                // ── Resource gates (Tier 3B) ────────────────────────────
+                this.chkMinHp = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 326),
+                    Text = "Only fire if HP \u2265"
+                };
+                this.chkMinHp.Checked = current.MinHpPercent.HasValue;
+
+                this.nudMinHp = new NumericUpDown
+                {
+                    Location = new Point(190, 324),
+                    Size = new Size(52, 22),
+                    Minimum = 1,
+                    Maximum = 100,
+                    Value = Math.Max(1, Math.Min(100, current.MinHpPercent ?? 50)),
+                    Increment = 1,
+                    Enabled = current.MinHpPercent.HasValue
+                };
+                Label lblMinHpPct = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(248, 326),
+                    Text = "%"
+                };
+                this.chkMinHp.CheckedChanged += (_, __) => this.nudMinHp.Enabled = this.chkMinHp.Checked;
+
+                this.chkMaxHp = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 352),
+                    Text = "Only fire if HP \u2264"
+                };
+                this.chkMaxHp.Checked = current.MaxHpPercent.HasValue;
+
+                this.nudMaxHp = new NumericUpDown
+                {
+                    Location = new Point(190, 350),
+                    Size = new Size(52, 22),
+                    Minimum = 1,
+                    Maximum = 100,
+                    Value = Math.Max(1, Math.Min(100, current.MaxHpPercent ?? 80)),
+                    Increment = 1,
+                    Enabled = current.MaxHpPercent.HasValue
+                };
+                Label lblMaxHpPct = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(248, 352),
+                    Text = "%"
+                };
+                this.chkMaxHp.CheckedChanged += (_, __) => this.nudMaxHp.Enabled = this.chkMaxHp.Checked;
+
+                this.chkMinSp = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 378),
+                    Text = "Only fire if SP \u2265"
+                };
+                this.chkMinSp.Checked = current.MinSpPercent.HasValue;
+
+                this.nudMinSp = new NumericUpDown
+                {
+                    Location = new Point(190, 376),
+                    Size = new Size(52, 22),
+                    Minimum = 1,
+                    Maximum = 100,
+                    Value = Math.Max(1, Math.Min(100, current.MinSpPercent ?? 10)),
+                    Increment = 1,
+                    Enabled = current.MinSpPercent.HasValue
+                };
+                Label lblMinSpPct = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(248, 378),
+                    Text = "%"
+                };
+                this.chkMinSp.CheckedChanged += (_, __) => this.nudMinSp.Enabled = this.chkMinSp.Checked;
+
                 this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 324),
+                    Location = new Point(12, 402),
                     Size = new Size(368, 18),
                     ForeColor = System.Drawing.SystemColors.GrayText,
                     Text = ""
@@ -997,7 +1082,7 @@ namespace _4RTools.Forms
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(12, 352),
+                    Location = new Point(12, 430),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -1005,18 +1090,28 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(230, 352),
+                    Location = new Point(230, 430),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
                 this.btnOk = new Button
                 {
-                    Location = new Point(310, 352),
+                    Location = new Point(310, 430),
                     Size = new Size(70, 24),
                     Text = "OK"
                 };
                 this.btnOk.Click += this.OnOkClick;
+
+                this.Controls.Add(this.chkMinHp);
+                this.Controls.Add(this.nudMinHp);
+                this.Controls.Add(lblMinHpPct);
+                this.Controls.Add(this.chkMaxHp);
+                this.Controls.Add(this.nudMaxHp);
+                this.Controls.Add(lblMaxHpPct);
+                this.Controls.Add(this.chkMinSp);
+                this.Controls.Add(this.nudMinSp);
+                this.Controls.Add(lblMinSpPct);
 
                 this.Controls.Add(lblTrigger);
                 this.Controls.Add(this.txtTrigger);
@@ -1080,6 +1175,9 @@ namespace _4RTools.Forms
 
                 slot.ClickActive = this.chkClickActive.Checked;
                 slot.LoopMode = this.chkLoopMode.Checked;
+                slot.MinHpPercent = this.chkMinHp.Checked ? (int?)(int)this.nudMinHp.Value : null;
+                slot.MaxHpPercent = this.chkMaxHp.Checked ? (int?)(int)this.nudMaxHp.Value : null;
+                slot.MinSpPercent = this.chkMinSp.Checked ? (int?)(int)this.nudMinSp.Value : null;
                 slot.TriggerBindings = new List<AhkTriggerBinding>
                 {
                     new AhkTriggerBinding

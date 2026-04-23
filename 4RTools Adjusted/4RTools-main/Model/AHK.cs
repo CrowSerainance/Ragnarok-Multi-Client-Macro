@@ -113,6 +113,24 @@ namespace _4RTools.Model
         /// <summary>When true, holding the trigger auto-cycles through skill keys paced by <see cref="InterSkillDelayMs"/>.</summary>
         public bool LoopMode { get; set; }
 
+        /// <summary>
+        /// Optional minimum HP% for fire (1–100). null = no lower-bound gate.
+        /// Use case: don't waste keystrokes when HP is dangerously low (let a heal slot take priority).
+        /// </summary>
+        public int? MinHpPercent { get; set; }
+
+        /// <summary>
+        /// Optional maximum HP% for fire (1–100). null = no upper-bound gate.
+        /// Use case: emergency-only buffs / pots that should only fire when HP drops below a threshold.
+        /// </summary>
+        public int? MaxHpPercent { get; set; }
+
+        /// <summary>
+        /// Optional minimum SP% for fire (1–100). null = no SP gate.
+        /// Use case: skip casts when SP is too low to land them (avoids the "no SP" flash spam).
+        /// </summary>
+        public int? MinSpPercent { get; set; }
+
         /// <summary>Cycles through skill keys one-per-press so the game's aftercast delay is respected.</summary>
         [JsonIgnore]
         public volatile int currentStep;
@@ -339,6 +357,53 @@ namespace _4RTools.Model
                 .Select(b => b.ParseKey())
                 .Where(k => k != FormsKeys.None)
                 .ToList();
+        }
+
+        /// <summary>
+        /// HP/SP percent gates (Tier 3B). Returns true when this slot is allowed to fire under the
+        /// current resource state. Fail-open: if max HP/SP read returns 0 (read failed, char select,
+        /// not in-game) the gate is skipped — same fail-open posture as <see cref="Client.IsPlayerIdle"/>.
+        /// </summary>
+        public bool PassesResourceGate(Client client)
+        {
+            if (this.MinHpPercent == null && this.MaxHpPercent == null && this.MinSpPercent == null)
+            {
+                return true;
+            }
+
+            if (client == null) return true;
+
+            try
+            {
+                if (this.MinHpPercent != null || this.MaxHpPercent != null)
+                {
+                    uint maxHp = client.ReadMaxHp();
+                    if (maxHp > 0)
+                    {
+                        uint curHp = client.ReadCurrentHp();
+                        // Avoid float math: compare cur*100 vs threshold*max.
+                        long curScaled = (long)curHp * 100L;
+                        if (this.MinHpPercent is int minHp && curScaled < (long)minHp * maxHp) return false;
+                        if (this.MaxHpPercent is int maxHpPct && curScaled > (long)maxHpPct * maxHp) return false;
+                    }
+                }
+
+                if (this.MinSpPercent is int minSp)
+                {
+                    uint maxSp = client.ReadMaxSp();
+                    if (maxSp > 0)
+                    {
+                        uint curSp = client.ReadCurrentSp();
+                        if ((long)curSp * 100L < (long)minSp * maxSp) return false;
+                    }
+                }
+            }
+            catch
+            {
+                return true; // fail-open on any memory hiccup
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -1345,6 +1410,10 @@ namespace _4RTools.Model
 
                 // Re-check idle gate at fire time (state may have changed since poll thread signalled).
                 if (slot.LoopMode && !roClient.IsPlayerIdle()) continue;
+
+                // Resource gates (Tier 3B): skip the fire if HP/SP conditions aren't met.
+                // Fail-open inside PassesResourceGate when memory reads return 0.
+                if (!slot.PassesResourceGate(roClient)) continue;
 
                 lock (_globalSendLock)
                 {
