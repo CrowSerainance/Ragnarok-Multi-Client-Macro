@@ -98,6 +98,15 @@ namespace _4RTools.Model
         /// <summary>Pause between hotkeys in a chain (after each key ± click, before the next key). Not applied after the last key (ms; default 60, range 20–350).</summary>
         public int InterSkillDelayMs { get; set; } = 60;
 
+        /// <summary>
+        /// Per-skill delay overrides keyed by <see cref="AhkSkillBinding.BuildSignature"/>. Looked up
+        /// after each fire to pace the next loop iteration; missing/invalid entries fall back to
+        /// <see cref="InterSkillDelayMs"/>. RO aftercast varies wildly per skill (Bolt vs Asura vs Heal),
+        /// so a single global delay is always wrong for half of them.
+        /// </summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public Dictionary<string, int> PerSkillDelayMs { get; set; } = new Dictionary<string, int>();
+
         /// <summary>Click at cursor after each skill key to confirm targeting. Default on.</summary>
         public bool ClickActive { get; set; } = true;
 
@@ -330,6 +339,29 @@ namespace _4RTools.Model
                 .Select(b => b.ParseKey())
                 .Where(k => k != FormsKeys.None)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Effective inter-fire delay AFTER the given <paramref name="binding"/> has fired (its aftercast).
+        /// Returns the per-skill override when set, otherwise the slot default. Always clamped to the
+        /// LoopMode/non-loop floor so a user-entered low value can't bypass <see cref="AHK.LoopModeDelayMinMs"/>.
+        /// Pass <c>null</c> to get the slot default (used before the first fire of a hold).
+        /// </summary>
+        public int GetDelayForBinding(AhkSkillBinding binding)
+        {
+            int floor = this.LoopMode ? AHK.LoopModeDelayMinMs : AHK.InterSkillDelayMinMs;
+            int max = AHK.InterSkillDelayMaxMs;
+            int fallback = Math.Max(floor, Math.Min(this.InterSkillDelayMs, max));
+
+            if (binding == null || this.PerSkillDelayMs == null || this.PerSkillDelayMs.Count == 0)
+            {
+                return fallback;
+            }
+
+            string sig = binding.BuildSignature();
+            if (string.IsNullOrEmpty(sig)) return fallback;
+            if (!this.PerSkillDelayMs.TryGetValue(sig, out int raw) || raw <= 0) return fallback;
+            return Math.Max(floor, Math.Min(raw, max));
         }
 
         public FormsKeys ParseTriggerKey()
@@ -811,14 +843,31 @@ namespace _4RTools.Model
 
                 if (slot.LoopMode)
                 {
-                    // Hold-to-cycle: first press fires immediately, then pace by InterSkillDelayMs.
+                    // Hold-to-cycle: first press fires immediately, then pace by the per-skill delay
+                    // for the most recently fired key (its aftercast). Falls back to slot default
+                    // when no override is set or before the first fire of this hold.
                     int now = Environment.TickCount;
                     bool firstPress = !_wasDown[i];
                     _wasDown[i] = true;
 
-                    if (!firstPress && unchecked(now - slot.lastFireTicks) < slot.InterSkillDelayMs)
+                    if (!firstPress)
                     {
-                        continue;
+                        AhkSkillBinding lastFired = null;
+                        if (slot.lastFiredStep > 0)
+                        {
+                            List<AhkSkillBinding> resolved = slot.GetResolvedSkillBindings();
+                            if (resolved.Count > 0)
+                            {
+                                int idx = (slot.lastFiredStep - 1) % resolved.Count;
+                                lastFired = resolved[idx];
+                            }
+                        }
+
+                        int gateMs = slot.GetDelayForBinding(lastFired);
+                        if (unchecked(now - slot.lastFireTicks) < gateMs)
+                        {
+                            continue;
+                        }
                     }
                 }
                 else

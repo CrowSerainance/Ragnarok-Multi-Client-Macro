@@ -765,14 +765,19 @@ namespace _4RTools.Forms
             private readonly TextBox txtTrigger;
             private readonly ListBox listSkills;
             private readonly NumericUpDown nudDelay;
+            private readonly NumericUpDown nudPerKeyDelay;
+            private readonly Label lblPerKey;
+            private readonly Label lblPerKeyHint;
             private readonly CheckBox chkClickActive;
             private readonly CheckBox chkLoopMode;
             private readonly Label lblStatus;
             private readonly Button btnOk;
             private AhkTriggerBinding workingTrigger;
             private readonly List<AhkSkillBinding> workingSkillBindings;
+            private readonly Dictionary<string, int> workingPerSkillDelay;
             private int workingInterSkillDelayMs;
             private ListenMode listenMode = ListenMode.None;
+            private bool suppressPerKeyChange;
 
             public BindingCaptureDialog(AhkSlotConfig current)
             {
@@ -817,12 +822,24 @@ namespace _4RTools.Forms
                     workingMinDelay,
                     Math.Min(current.InterSkillDelayMs, AHK.InterSkillDelayMaxMs));
 
+                this.workingPerSkillDelay = new Dictionary<string, int>(StringComparer.Ordinal);
+                if (current.PerSkillDelayMs != null)
+                {
+                    foreach (var kv in current.PerSkillDelayMs)
+                    {
+                        if (!string.IsNullOrEmpty(kv.Key) && kv.Value > 0)
+                        {
+                            this.workingPerSkillDelay[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+
                 this.Text = "Bind Slot";
                 this.StartPosition = FormStartPosition.CenterParent;
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(392, 358);
+                this.ClientSize = new Size(392, 386);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
@@ -914,6 +931,7 @@ namespace _4RTools.Forms
                 this.nudDelay.ValueChanged += (_, __) =>
                 {
                     this.workingInterSkillDelayMs = (int)this.nudDelay.Value;
+                    this.RepopulateSkillList();
                 };
 
                 Label lblDelayHint = new Label
@@ -924,10 +942,37 @@ namespace _4RTools.Forms
                     Text = $"{AHK.InterSkillDelayMinMs}–{AHK.InterSkillDelayMaxMs}"
                 };
 
+                this.lblPerKey = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 250),
+                    Text = "Selected key delay (0 = use default)"
+                };
+
+                this.nudPerKeyDelay = new NumericUpDown
+                {
+                    Location = new Point(220, 248),
+                    Size = new Size(52, 22),
+                    Minimum = 0,
+                    Maximum = AHK.InterSkillDelayMaxMs,
+                    Value = 0,
+                    Increment = 1,
+                    Enabled = false
+                };
+                this.nudPerKeyDelay.ValueChanged += this.OnPerKeyDelayChanged;
+
+                this.lblPerKeyHint = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(278, 250),
+                    ForeColor = System.Drawing.SystemColors.GrayText,
+                    Text = "0 or 20–350"
+                };
+
                 this.chkClickActive = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 248),
+                    Location = new Point(12, 276),
                     Text = "Click after each key (stock Skill Spammer)"
                 };
                 this.chkClickActive.Checked = current.ClickActive;
@@ -935,7 +980,7 @@ namespace _4RTools.Forms
                 this.chkLoopMode = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 270),
+                    Location = new Point(12, 298),
                     Text = "Loop while held (auto-cycle keys, paced by Pause)"
                 };
                 this.chkLoopMode.Checked = current.LoopMode;
@@ -943,7 +988,7 @@ namespace _4RTools.Forms
                 this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 296),
+                    Location = new Point(12, 324),
                     Size = new Size(368, 18),
                     ForeColor = System.Drawing.SystemColors.GrayText,
                     Text = ""
@@ -952,7 +997,7 @@ namespace _4RTools.Forms
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(12, 324),
+                    Location = new Point(12, 352),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -960,14 +1005,14 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(230, 324),
+                    Location = new Point(230, 352),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
                 this.btnOk = new Button
                 {
-                    Location = new Point(310, 324),
+                    Location = new Point(310, 352),
                     Size = new Size(70, 24),
                     Text = "OK"
                 };
@@ -985,6 +1030,9 @@ namespace _4RTools.Forms
                 this.Controls.Add(lblDelay);
                 this.Controls.Add(this.nudDelay);
                 this.Controls.Add(lblDelayHint);
+                this.Controls.Add(this.lblPerKey);
+                this.Controls.Add(this.nudPerKeyDelay);
+                this.Controls.Add(this.lblPerKeyHint);
                 this.Controls.Add(this.chkClickActive);
                 this.Controls.Add(this.chkLoopMode);
                 this.Controls.Add(this.lblStatus);
@@ -994,6 +1042,7 @@ namespace _4RTools.Forms
                 this.AcceptButton = this.btnOk;
                 this.CancelButton = btnCancel;
 
+                this.listSkills.SelectedIndexChanged += (_, __) => this.RefreshPerKeyDelayControl();
                 this.RefreshDisplays();
             }
 
@@ -1011,6 +1060,24 @@ namespace _4RTools.Forms
                 slot.Shift = this.workingTrigger.Shift;
                 slot.Win = this.workingTrigger.Win;
                 slot.InterSkillDelayMs = this.workingInterSkillDelayMs;
+
+                // Write back per-skill overrides, filtered to bindings that survived dedup so the
+                // dictionary doesn't accumulate orphaned entries from removed/edited keys.
+                var keptSigs = new HashSet<string>(StringComparer.Ordinal);
+                foreach (AhkSkillBinding b in distinctBindings)
+                {
+                    string s = b?.BuildSignature();
+                    if (!string.IsNullOrEmpty(s)) keptSigs.Add(s);
+                }
+                slot.PerSkillDelayMs = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var kv in this.workingPerSkillDelay)
+                {
+                    if (kv.Value > 0 && keptSigs.Contains(kv.Key))
+                    {
+                        slot.PerSkillDelayMs[kv.Key] = kv.Value;
+                    }
+                }
+
                 slot.ClickActive = this.chkClickActive.Checked;
                 slot.LoopMode = this.chkLoopMode.Checked;
                 slot.TriggerBindings = new List<AhkTriggerBinding>
@@ -1078,14 +1145,96 @@ namespace _4RTools.Forms
                 FormsKeys tk = this.workingTrigger.ParseKey();
                 this.txtTrigger.Text = tk == FormsKeys.None ? "(not set)" : FormatOneTrigger(this.workingTrigger);
 
-                this.listSkills.Items.Clear();
-                foreach (AhkSkillBinding b in this.workingSkillBindings)
-                {
-                    this.listSkills.Items.Add(FormatOneSkillBarHotkey(b));
-                }
+                this.RepopulateSkillList();
+                this.RefreshPerKeyDelayControl();
 
                 this.listenMode = ListenMode.None;
                 this.lblStatus.Text = "Each exact key combo can appear only once per cycle.";
+            }
+
+            private void RepopulateSkillList()
+            {
+                int previousIndex = this.listSkills.SelectedIndex;
+                this.listSkills.Items.Clear();
+                foreach (AhkSkillBinding b in this.workingSkillBindings)
+                {
+                    string label = FormatOneSkillBarHotkey(b);
+                    string sig = b?.BuildSignature() ?? string.Empty;
+                    string suffix;
+                    if (!string.IsNullOrEmpty(sig) && this.workingPerSkillDelay.TryGetValue(sig, out int over) && over > 0)
+                    {
+                        suffix = $"  —  {over} ms";
+                    }
+                    else
+                    {
+                        suffix = $"  —  {this.workingInterSkillDelayMs} ms (default)";
+                    }
+                    this.listSkills.Items.Add(label + suffix);
+                }
+                if (previousIndex >= 0 && previousIndex < this.listSkills.Items.Count)
+                {
+                    this.listSkills.SelectedIndex = previousIndex;
+                }
+            }
+
+            private void RefreshPerKeyDelayControl()
+            {
+                int i = this.listSkills.SelectedIndex;
+                if (i < 0 || i >= this.workingSkillBindings.Count)
+                {
+                    this.suppressPerKeyChange = true;
+                    try
+                    {
+                        this.nudPerKeyDelay.Value = 0;
+                    }
+                    finally { this.suppressPerKeyChange = false; }
+                    this.nudPerKeyDelay.Enabled = false;
+                    this.lblPerKey.ForeColor = System.Drawing.SystemColors.GrayText;
+                    return;
+                }
+
+                AhkSkillBinding selected = this.workingSkillBindings[i];
+                string sig = selected?.BuildSignature() ?? string.Empty;
+                int value = 0;
+                if (!string.IsNullOrEmpty(sig) && this.workingPerSkillDelay.TryGetValue(sig, out int over))
+                {
+                    value = Math.Max(0, Math.Min(over, AHK.InterSkillDelayMaxMs));
+                }
+
+                this.suppressPerKeyChange = true;
+                try
+                {
+                    this.nudPerKeyDelay.Value = value;
+                }
+                finally { this.suppressPerKeyChange = false; }
+
+                this.nudPerKeyDelay.Enabled = !string.IsNullOrEmpty(sig);
+                this.lblPerKey.ForeColor = this.nudPerKeyDelay.Enabled
+                    ? System.Drawing.SystemColors.ControlText
+                    : System.Drawing.SystemColors.GrayText;
+            }
+
+            private void OnPerKeyDelayChanged(object sender, EventArgs e)
+            {
+                if (this.suppressPerKeyChange) return;
+                int i = this.listSkills.SelectedIndex;
+                if (i < 0 || i >= this.workingSkillBindings.Count) return;
+
+                string sig = this.workingSkillBindings[i]?.BuildSignature() ?? string.Empty;
+                if (string.IsNullOrEmpty(sig)) return;
+
+                int value = (int)this.nudPerKeyDelay.Value;
+                if (value <= 0)
+                {
+                    this.workingPerSkillDelay.Remove(sig);
+                }
+                else
+                {
+                    int floored = Math.Max(AHK.InterSkillDelayMinMs, Math.Min(value, AHK.InterSkillDelayMaxMs));
+                    this.workingPerSkillDelay[sig] = floored;
+                }
+
+                this.RepopulateSkillList();
             }
 
             private void OnOkClick(object sender, EventArgs e)
