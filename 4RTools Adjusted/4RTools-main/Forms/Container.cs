@@ -29,6 +29,7 @@ namespace _4RTools.Forms
             SetAutopotWindow();
             SetAutopotYggWindow();
             SetSkillTimerWindow();
+            SetAutoKeyWindow();
             SetProfileWindow();
             SetAHKWindow();
             SetAutobuffSkillWindow();
@@ -377,6 +378,15 @@ namespace _4RTools.Forms
             frm.MdiParent = this;
             frm.Show();
             addform(this.tabSkillTimer, frm);
+        }
+
+        public void SetAutoKeyWindow()
+        {
+            AutoKeyForm frm = new AutoKeyForm(subject);
+            frm.FormBorderStyle = FormBorderStyle.None;
+            frm.MdiParent = this;
+            frm.Show();
+            addform(this.tabPageAutoKey, frm);
         }
 
         public void SetProfileWindow()

@@ -307,6 +307,12 @@
     <Compile Include="Forms\SkillTimerForm.Designer.cs">
       <DependentUpon>SkillTimerForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\AutoKeyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\AutoKeyForm.Designer.cs">
+      <DependentUpon>AutoKeyForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\StuffAutoBuffForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -343,6 +349,7 @@
     <Compile Include="Model\Autopot.cs" />
     <Compile Include="Model\Autobuff.cs" />
     <Compile Include="Model\AutoRefreshSpammer.cs" />
+    <Compile Include="Model\AutoKey.cs" />
     <Compile Include="Model\Buff.cs" />
     <Compile Include="Model\BuffContainer.cs" />
     <Compile Include="Model\BuffRenderer.cs" />
@@ -429,6 +436,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\SkillTimerForm.resx">
       <DependentUpon>SkillTimerForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\AutoKeyForm.resx">
+      <DependentUpon>AutoKeyForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\StuffAutoBuffForm.resx">
       <DependentUpon>StuffAutoBuffForm.cs</DependentUpon>

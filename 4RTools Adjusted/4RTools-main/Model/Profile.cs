@@ -153,6 +153,8 @@ namespace _4RTools.Model
         [JsonProperty("ATKDEFMode")]
         public ATKDEFMode AtkDefMode { get; set; }
         public DebuffsRecovery DebuffsRecovery { get; set; }
+        [JsonProperty("AutoKey")]
+        public AutoKey AutoKey { get; set; }
 
         public Profile(string name)
         {
@@ -170,6 +172,7 @@ namespace _4RTools.Model
             this.MacroSwitch = new Macro(Macro.ACTION_NAME_MACRO_SWITCH, MacroSwitchForm.TOTAL_MACRO_LANES);
             this.AtkDefMode = new ATKDEFMode();
             this.DebuffsRecovery = new DebuffsRecovery();
+            this.AutoKey = new AutoKey(AutoKey.ACTION_NAME);
         }
 
         public static JObject BuildCanonicalRoot(Profile source)
@@ -203,6 +206,8 @@ namespace _4RTools.Model
             loaded.AtkDefMode = DeserializeAction<ATKDEFMode>(root, loaded.AtkDefMode);
             loaded.MacroSwitch = DeserializeAction<Macro>(root, loaded.MacroSwitch);
             loaded.DebuffsRecovery = DeserializeAction<DebuffsRecovery>(root, loaded.DebuffsRecovery);
+            loaded.AutoKey = DeserializeAction<AutoKey>(root, loaded.AutoKey);
+            if (loaded.AutoKey != null) loaded.AutoKey.ActionName = AutoKey.ACTION_NAME;
 
             if (loaded.AHK != null)
             {
@@ -365,6 +370,7 @@ namespace _4RTools.Model
                 source.AutoRefreshSpammer1,
                 source.AutoRefreshSpammer2,
                 source.AutoRefreshSpammer3,
+                source.AutoKey,
                 source.UserPreferences
             };
         }

@@ -58,6 +58,7 @@ namespace _4RTools.Forms
             this.tabPageAutobuffStuff = new System.Windows.Forms.TabPage();
             this.tabPageAutobuffSkill = new System.Windows.Forms.TabPage();
             this.tabSkillTimer = new System.Windows.Forms.TabPage();
+            this.tabPageAutoKey = new System.Windows.Forms.TabPage();
             this.atkDefMode = new System.Windows.Forms.TabControl();
             this.tabDebuffRecovery = new System.Windows.Forms.TabPage();
             this.characterName = new System.Windows.Forms.Label();
@@ -341,7 +342,18 @@ namespace _4RTools.Forms
             this.tabSkillTimer.TabIndex = 5;
             this.tabSkillTimer.Text = "Skill timers";
             this.tabSkillTimer.UseVisualStyleBackColor = true;
-            // 
+            //
+            // tabPageAutoKey
+            //
+            this.tabPageAutoKey.ImageIndex = 0;
+            this.tabPageAutoKey.Location = new System.Drawing.Point(4, 22);
+            this.tabPageAutoKey.Name = "tabPageAutoKey";
+            this.tabPageAutoKey.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageAutoKey.Size = new System.Drawing.Size(865, 274);
+            this.tabPageAutoKey.TabIndex = 6;
+            this.tabPageAutoKey.Text = "Auto-Key";
+            this.tabPageAutoKey.UseVisualStyleBackColor = true;
+            //
             // atkDefMode
             // 
             this.atkDefMode.Controls.Add(this.tabPageSpammer);
@@ -349,6 +361,7 @@ namespace _4RTools.Forms
             this.atkDefMode.Controls.Add(this.tabPageAutobuffSkill);
             this.atkDefMode.Controls.Add(this.tabPageAutobuffStuff);
             this.atkDefMode.Controls.Add(this.tabSkillTimer);
+            this.atkDefMode.Controls.Add(this.tabPageAutoKey);
             this.atkDefMode.Controls.Add(this.tabMacroSwitch);
             this.atkDefMode.Controls.Add(this.tabPageMacroSongs);
             this.atkDefMode.Controls.Add(this.atkDef);
@@ -472,6 +485,7 @@ namespace _4RTools.Forms
         private TabPage tabDebuffRecovery;
         private Panel OnOffPanel;
         private TabPage tabSkillTimer;
+        private TabPage tabPageAutoKey;
         private Label lbPowered;
     }
 }
