@@ -207,7 +207,11 @@ namespace _4RTools.Model
             loaded.MacroSwitch = DeserializeAction<Macro>(root, loaded.MacroSwitch);
             loaded.DebuffsRecovery = DeserializeAction<DebuffsRecovery>(root, loaded.DebuffsRecovery);
             loaded.AutoKey = DeserializeAction<AutoKey>(root, loaded.AutoKey);
-            if (loaded.AutoKey != null) loaded.AutoKey.ActionName = AutoKey.ACTION_NAME;
+            if (loaded.AutoKey != null)
+            {
+                loaded.AutoKey.ActionName = AutoKey.ACTION_NAME;
+                loaded.AutoKey.EnsureSlots();
+            }
 
             if (loaded.AHK != null)
             {
