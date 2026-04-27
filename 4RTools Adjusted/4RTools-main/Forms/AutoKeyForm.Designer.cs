@@ -38,6 +38,8 @@ namespace _4RTools.Forms
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(720, 270);
+            this.AutoScroll = true;
+            this.AutoScrollMinSize = new System.Drawing.Size(710, 260);
             this.Controls.Add(this.lblHint);
             this.ForeColor = System.Drawing.Color.Black;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
