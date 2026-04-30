@@ -30,6 +30,18 @@ public class InputSimulator
         return _cachedHwnd;
     }
 
+    /// <summary>
+    /// Top-level RO window — matches original 4RTools / MuhBot behavior. Required for keyboard sends
+    /// because RO's keyboard handler lives on the top-level window, not the largest visible child
+    /// (which is the render surface used for mouse coordinates).
+    /// </summary>
+    private IntPtr ResolveKeyboardWindowHandle()
+    {
+        _cachedHwnd = _processManager.GetGameWindowOrNull();
+        DiagLog.Write($"ResolveKeyboardWindowHandle hWnd=0x{_cachedHwnd.ToInt64():X} {DiagLog.DescribeWindow(_cachedHwnd)}");
+        return _cachedHwnd;
+    }
+
     /// <summary>Forces clicks/keys to use this HWND (e.g. macro chain after resolving render target).</summary>
     public void SetCachedWindowHandle(IntPtr hWnd)
     {
@@ -92,13 +104,34 @@ public class InputSimulator
     /// </summary>
     public void SendKey(int vkCode, bool noDelay = false, CancellationToken ct = default)
     {
-        IntPtr hWnd = ResolveWindowHandle();
-        if (hWnd == IntPtr.Zero) return;
+        // Aggressive multi-target: enumerate every top-level HWND owned by the attached PID
+        // and PostMessage to all of them. Any wrong child / overlay / focus-stealer window
+        // ignores the input; the right one (with the keyboard handler) receives it.
+        var hwnds = ResolveAllProcessTopLevelWindows();
+        IntPtr primary = ResolveKeyboardWindowHandle();
+        if (primary != IntPtr.Zero && !hwnds.Contains(primary))
+            hwnds.Add(primary);
+        if (hwnds.Count == 0)
+        {
+            DiagLog.Write($"SendKey vk=0x{vkCode:X2} → NO HWNDS RESOLVED (pid={_processManager.ProcessId})");
+            return;
+        }
 
         uint lParamDown = BuildKeyDownLParam(vkCode);
         uint lParamUp = BuildKeyUpLParam(vkCode);
 
-        Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
+        DiagLog.Write($"SendKey vk=0x{vkCode:X2} broadcasting to {hwnds.Count} hwnd(s) [primary=0x{primary.ToInt64():X}]");
+
+        foreach (var h in hwnds)
+            Native.PostMessage(h, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)lParamDown);
+
+        // SendInput fallback when RO is foregrounded — bypasses any per-window message filter
+        // by going through the OS-level synthetic input queue (treated as real keyboard).
+        IntPtr fg = Native.GetForegroundWindow();
+        bool roIsForeground = hwnds.Contains(fg);
+        if (roIsForeground)
+            TrySendInputKeyDown(vkCode);
+
         try
         {
             int holdMs = noDelay ? _rng.Next(8, 15) : GaussianDelay(55, 15, 25, 100);
@@ -106,8 +139,79 @@ public class InputSimulator
         }
         finally
         {
-            Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+            foreach (var h in hwnds)
+                Native.PostMessage(h, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)lParamUp);
+            if (roIsForeground)
+                TrySendInputKeyUp(vkCode);
         }
+    }
+
+    /// <summary>
+    /// Enumerate every top-level window owned by the currently-attached process.
+    /// Used by aggressive keyboard broadcast to cover overlay / multi-window RO clients.
+    /// </summary>
+    private System.Collections.Generic.List<IntPtr> ResolveAllProcessTopLevelWindows()
+    {
+        var hwnds = new System.Collections.Generic.List<IntPtr>(4);
+        uint targetPid = (uint)_processManager.ProcessId;
+        if (targetPid == 0) return hwnds;
+        Native.EnumWindows((hWnd, _) =>
+        {
+            Native.GetWindowThreadProcessId(hWnd, out uint pid);
+            if (pid == targetPid) hwnds.Add(hWnd);
+            return true;
+        }, IntPtr.Zero);
+        return hwnds;
+    }
+
+    private static void TrySendInputKeyDown(int vkCode)
+    {
+        try
+        {
+            uint scanCode = Native.MapVirtualKeyW((uint)vkCode, 0);
+            var input = new Native.INPUT
+            {
+                type = 1, // INPUT_KEYBOARD
+                U = new Native.INPUTUNION
+                {
+                    ki = new Native.KEYBDINPUT
+                    {
+                        wVk = (ushort)vkCode,
+                        wScan = (ushort)scanCode,
+                        dwFlags = 0,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+            Native.SendInput(1, new[] { input }, Marshal.SizeOf<Native.INPUT>());
+        }
+        catch { }
+    }
+
+    private static void TrySendInputKeyUp(int vkCode)
+    {
+        try
+        {
+            uint scanCode = Native.MapVirtualKeyW((uint)vkCode, 0);
+            var input = new Native.INPUT
+            {
+                type = 1,
+                U = new Native.INPUTUNION
+                {
+                    ki = new Native.KEYBDINPUT
+                    {
+                        wVk = (ushort)vkCode,
+                        wScan = (ushort)scanCode,
+                        dwFlags = Native.KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+            Native.SendInput(1, new[] { input }, Marshal.SizeOf<Native.INPUT>());
+        }
+        catch { }
     }
 
     /// <summary>
@@ -115,7 +219,7 @@ public class InputSimulator
     /// </summary>
     public void SendKeySendMessage(int vkCode)
     {
-        IntPtr hWnd = ResolveWindowHandle();
+        IntPtr hWnd = ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
 
         uint lParamDown = BuildKeyDownLParam(vkCode);
@@ -131,7 +235,7 @@ public class InputSimulator
     /// </summary>
     public void SendCtrlCombo(int vkCode)
     {
-        IntPtr hWnd = ResolveWindowHandle();
+        IntPtr hWnd = ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
 
         const int ctrlVk = 0x11; // VK_CONTROL
@@ -151,7 +255,7 @@ public class InputSimulator
     /// </summary>
     public void SendKeyChord(int vkCode, bool ctrl, bool alt, bool shift, bool win, bool noDelay = false, CancellationToken ct = default)
     {
-        IntPtr hWnd = ResolveWindowHandle();
+        IntPtr hWnd = ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
 
         int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
@@ -187,7 +291,7 @@ public class InputSimulator
 
     public void SendKeyChordSendMessage(int vkCode, bool ctrl, bool alt, bool shift, bool win)
     {
-        IntPtr hWnd = ResolveWindowHandle();
+        IntPtr hWnd = ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
 
         int[] modifiers = BuildModifierList(ctrl, alt, shift, win);
@@ -209,7 +313,7 @@ public class InputSimulator
     }
 
     /// <summary>Resolve and cache game HWND; call once before a multi-key skill macro.</summary>
-    public bool TryBeginSkillSequenceWindow() => ResolveWindowHandle() != IntPtr.Zero;
+    public bool TryBeginSkillSequenceWindow() => ResolveKeyboardWindowHandle() != IntPtr.Zero;
 
     /// <summary>
     /// Skill macro: synchronous <see cref="Native.SendMessage"/> so the window processes each key before the next.
@@ -565,7 +669,7 @@ public class InputSimulator
     /// </summary>
     public void SendAtChar()
     {
-        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
         uint scanCode = Native.MapVirtualKeyW(0x32, 0); // '2' key scan code (@ = Shift+2)
         Native.PostMessage(hWnd, Native.WM_CHAR, (IntPtr)0x40, (IntPtr)(0x00000001 | (scanCode << 16)));
@@ -925,14 +1029,14 @@ public class InputSimulator
 
     public void PostKeyDown(int vkCode)
     {
-        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
         Native.PostMessage(hWnd, Native.WM_KEYDOWN, (IntPtr)vkCode, (IntPtr)BuildKeyDownLParam(vkCode));
     }
 
     public void PostKeyUp(int vkCode)
     {
-        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveWindowHandle();
+        IntPtr hWnd = _cachedHwnd != IntPtr.Zero ? _cachedHwnd : ResolveKeyboardWindowHandle();
         if (hWnd == IntPtr.Zero) return;
         Native.PostMessage(hWnd, Native.WM_KEYUP, (IntPtr)vkCode, (IntPtr)BuildKeyUpLParam(vkCode));
     }
@@ -1044,6 +1148,40 @@ public class InputSimulator
         if (shift) modifiers.Add(0x10);
         if (win) modifiers.Add(0x5B);
         return modifiers.ToArray();
+    }
+}
+
+internal static class DiagLog
+{
+    private static readonly object _lock = new object();
+    private static readonly string _path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "4rtools-spam.log");
+
+    public static void Write(string msg)
+    {
+        try
+        {
+            lock (_lock)
+            {
+                System.IO.File.AppendAllText(_path, $"{System.DateTime.Now:HH:mm:ss.fff} {msg}\r\n");
+            }
+        }
+        catch { }
+    }
+
+    public static string DescribeWindow(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return "(null hwnd)";
+        try
+        {
+            var title = new System.Text.StringBuilder(256);
+            Native.GetWindowText(hWnd, title, title.Capacity);
+            bool visible = Native.IsWindowVisible(hWnd);
+            return $"title='{title}' visible={visible}";
+        }
+        catch (System.Exception ex)
+        {
+            return $"(describe failed: {ex.Message})";
+        }
     }
 }
 

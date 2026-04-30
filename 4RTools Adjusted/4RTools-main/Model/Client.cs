@@ -251,6 +251,46 @@ namespace _4RTools.Model
             return state == 0 || state == 2; // 0 = idle/standing, 2 = sitting
         }
 
+        /// <summary>
+        /// Reads the player's current cast-bar progress as a float in [0.0, 1.0].
+        /// Returns null when <see cref="AddressConfig.CastProgressOffset"/> is unset (0)
+        /// or when the pointer chain can't be resolved.
+        /// </summary>
+        public float? ReadCastProgress()
+        {
+            if (memory == null || processManager == null || !processManager.IsAttached)
+                return null;
+            if (this.AddressConfig == null || this.AddressConfig.CastProgressOffset == 0)
+                return null;
+
+            try
+            {
+                IntPtr addr = memory.ResolvePointerChain(
+                    (IntPtr)this.AddressConfig.WorldBaseIntermed,
+                    new int[] { 0, this.AddressConfig.WorldBaseOffset, this.AddressConfig.PlayerBaseOffset },
+                    this.AddressConfig.CastProgressOffset);
+
+                if (addr == IntPtr.Zero) return null;
+                return memory.ReadFloat(addr);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the player is mid-cast (cast progress strictly between 0 and 1).
+        /// Fail-open: returns false if the offset is unset or the read fails, so the spammer
+        /// can fall through to <see cref="IsPlayerIdle"/> without false blocks.
+        /// </summary>
+        public bool IsCasting()
+        {
+            float? p = ReadCastProgress();
+            if (!p.HasValue) return false;
+            return p.Value > 0f && p.Value < 1f;
+        }
+
         public Client GetClientByProcess(string processName)
         {
             foreach(Client c in ClientListSingleton.GetAll())

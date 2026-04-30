@@ -144,6 +144,28 @@ public class AddressConfig
     [JsonProperty("buffArrayOffsetFromHpBase")]
     public int BuffArrayOffsetFromHpBase { get; set; } = 0x474;
 
+    // ── Cast progress / cooldown (Tier 3C) ─────────────────────────
+    // Default 0 = disabled; spammer falls back to binary IsPlayerIdle.
+    // Per-server scan: find a float on the player entity that ramps 0.0 → 1.0
+    // during a long cast (Asura, Bowling Bash). The base address resolves via
+    // the existing entity pointer chain (WorldBaseIntermed → … → entity).
+
+    /// <summary>Float on player entity, ramps 0.0 → 1.0 while casting. 0 = disabled.</summary>
+    [JsonProperty("castProgressOffset")]
+    public int CastProgressOffset { get; set; } = 0;
+
+    /// <summary>Float on player entity, full cast duration (seconds). 0 = disabled. Reserved for future use.</summary>
+    [JsonProperty("castMaxOffset")]
+    public int CastMaxOffset { get; set; } = 0;
+
+    /// <summary>uint32 on player entity, ID of the last skill cast. 0 = disabled. Reserved for future use.</summary>
+    [JsonProperty("lastSkillIdOffset")]
+    public int LastSkillIdOffset { get; set; } = 0;
+
+    /// <summary>Base of the per-skill cooldown table. 0 = disabled. Reserved for future use.</summary>
+    [JsonProperty("skillCooldownTableOffset")]
+    public int SkillCooldownTableOffset { get; set; } = 0;
+
     // ── Persistence ──────────────────────────────────────────────
 
     private static readonly string DefaultPath = Path.Combine(".", "addresses.json");

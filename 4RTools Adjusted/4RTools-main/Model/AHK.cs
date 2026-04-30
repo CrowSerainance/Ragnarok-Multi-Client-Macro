@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -15,6 +16,24 @@ using WpfKey = System.Windows.Input.Key;
 
 namespace _4RTools.Model
 {
+    internal static class SpamLog
+    {
+        private static readonly object _lock = new object();
+        private static readonly string _path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "4rtools-spam.log");
+
+        public static void Write(string msg)
+        {
+            try
+            {
+                lock (_lock)
+                {
+                    System.IO.File.AppendAllText(_path, $"{DateTime.Now:HH:mm:ss.fff} {msg}\r\n");
+                }
+            }
+            catch { }
+        }
+    }
+
     /// <summary>Legacy config kept only for profile migration from old checkbox-based AHK.</summary>
     public class KeyConfig
     {
@@ -906,6 +925,8 @@ namespace _4RTools.Model
                     continue;
                 }
 
+                if (!_wasDown[i]) SpamLog.Write($"slot[{i}] trigger pressed (HasBinding={slot.HasBinding}, LoopMode={slot.LoopMode})");
+
                 if (slot.LoopMode)
                 {
                     // Hold-to-cycle: first press fires immediately, then pace by the per-skill delay
@@ -954,15 +975,6 @@ namespace _4RTools.Model
                     continue;
                 }
 
-                // LoopMode idle gate: skip while the character is walking / casting / attacking so
-                // we pace to actual aftercast instead of the fixed ms floor. Fail-open when the
-                // pointer chain can't be resolved (IsPlayerIdle returns true). Rising-edge
-                // (single-press) path intentionally bypasses this — one press should always fire.
-                if (slot.LoopMode && !roClient.IsPlayerIdle())
-                {
-                    continue;
-                }
-
                 // Stamp fire time BEFORE signaling so the next poll tick honors InterSkillDelayMs
                 // even while the worker is still holding the global send lock.
                 if (slot.LoopMode)
@@ -973,6 +985,7 @@ namespace _4RTools.Model
                 // Hand off to the per-slot worker. Detection stays on this poll thread; the ~55-100 ms
                 // Gaussian hold inside SendKey runs on a dedicated Task, so one slow slot can't starve
                 // release detection or pacing for the others.
+                SpamLog.Write($"slot[{i}] dispatching to worker");
                 SignalSlotFire(i);
             }
 
@@ -1406,14 +1419,19 @@ namespace _4RTools.Model
                 if (roClient == null) continue;
 
                 // Defensive re-check: trigger may have been released between signal and wake.
-                if (!slot.HasBinding || !IsSlotPressed(slot)) continue;
-
-                // Re-check idle gate at fire time (state may have changed since poll thread signalled).
-                if (slot.LoopMode && !roClient.IsPlayerIdle()) continue;
+                if (!slot.HasBinding || !IsSlotPressed(slot))
+                {
+                    SpamLog.Write($"worker[{slotIndex}] released between signal and wake — skipping");
+                    continue;
+                }
 
                 // Resource gates (Tier 3B): skip the fire if HP/SP conditions aren't met.
                 // Fail-open inside PassesResourceGate when memory reads return 0.
-                if (!slot.PassesResourceGate(roClient)) continue;
+                if (!slot.PassesResourceGate(roClient))
+                {
+                    SpamLog.Write($"worker[{slotIndex}] blocked by HP/SP gate");
+                    continue;
+                }
 
                 lock (_globalSendLock)
                 {
@@ -1421,6 +1439,7 @@ namespace _4RTools.Model
 
                     ApplyGlobalThrottle();
 
+                    SpamLog.Write($"worker[{slotIndex}] firing key");
                     FireCurrentStepKey(roClient, slot, ct);
 
                     _lastGlobalSendTick = Environment.TickCount;
