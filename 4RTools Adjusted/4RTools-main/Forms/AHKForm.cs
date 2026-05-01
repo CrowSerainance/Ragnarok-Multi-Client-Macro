@@ -769,6 +769,8 @@ namespace _4RTools.Forms
             private readonly Label lblPerKey;
             private readonly Label lblPerKeyHint;
             private readonly CheckBox chkClickActive;
+            private readonly NumericUpDown nudClickSpeed;
+            private readonly Label lblClickSpeed;
             private readonly CheckBox chkLoopMode;
             private readonly CheckBox chkMinHp;
             private readonly NumericUpDown nudMinHp;
@@ -983,6 +985,24 @@ namespace _4RTools.Forms
                 };
                 this.chkClickActive.Checked = current.ClickActive;
 
+                this.nudClickSpeed = new NumericUpDown
+                {
+                    Location = new Point(290, 274),
+                    Size = new Size(58, 22),
+                    Minimum = 5,
+                    Maximum = 200,
+                    Value = Math.Max(5, Math.Min(200, current.ClickSpeedMs <= 0 ? 30 : current.ClickSpeedMs)),
+                    Increment = 5,
+                    Enabled = current.ClickActive
+                };
+                this.lblClickSpeed = new Label
+                {
+                    AutoSize = true,
+                    Location = new Point(354, 276),
+                    Text = "ms hold"
+                };
+                this.chkClickActive.CheckedChanged += (_, __) => this.nudClickSpeed.Enabled = this.chkClickActive.Checked;
+
                 this.chkLoopMode = new CheckBox
                 {
                     AutoSize = true,
@@ -1129,6 +1149,8 @@ namespace _4RTools.Forms
                 this.Controls.Add(this.nudPerKeyDelay);
                 this.Controls.Add(this.lblPerKeyHint);
                 this.Controls.Add(this.chkClickActive);
+                this.Controls.Add(this.nudClickSpeed);
+                this.Controls.Add(this.lblClickSpeed);
                 this.Controls.Add(this.chkLoopMode);
                 this.Controls.Add(this.lblStatus);
                 this.Controls.Add(btnClear);
@@ -1174,6 +1196,7 @@ namespace _4RTools.Forms
                 }
 
                 slot.ClickActive = this.chkClickActive.Checked;
+                slot.ClickSpeedMs = (int)this.nudClickSpeed.Value;
                 slot.LoopMode = this.chkLoopMode.Checked;
                 slot.MinHpPercent = this.chkMinHp.Checked ? (int?)(int)this.nudMinHp.Value : null;
                 slot.MaxHpPercent = this.chkMaxHp.Checked ? (int?)(int)this.nudMaxHp.Value : null;

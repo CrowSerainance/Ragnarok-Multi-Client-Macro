@@ -745,6 +745,106 @@ public class InputSimulator
     }
 
     /// <summary>
+    /// Background left click with caller-controlled LBUTTONDOWN→UP hold (ms). Uses the same window
+    /// as <see cref="SendClick"/> (render-surface child) so coordinates land in client space.
+    /// Used by skill-spammer "click after each key" to give users a UI-tunable click speed.
+    /// </summary>
+    public void SendClickWithHold(int screenX, int screenY, int holdMs)
+    {
+        var hwnds = ResolveAllProcessTopLevelWindows();
+        IntPtr renderChild = ResolveWindowHandle();
+        if (renderChild != IntPtr.Zero && !hwnds.Contains(renderChild))
+            hwnds.Add(renderChild);
+        if (hwnds.Count == 0)
+        {
+            DiagLog.Write($"SendClickWithHold ABORT no hwnds");
+            return;
+        }
+
+        int clamped = Math.Max(5, Math.Min(200, holdMs));
+        DiagLog.Write($"SendClickWithHold screen=({screenX},{screenY}) hold={clamped}ms broadcasting to {hwnds.Count} hwnd(s)");
+
+        IntPtr[] lParams = new IntPtr[hwnds.Count];
+        for (int i = 0; i < hwnds.Count; i++)
+        {
+            var pt = new Native.POINT { X = screenX, Y = screenY };
+            Native.ScreenToClient(hwnds[i], ref pt);
+            int cx = pt.X & 0xFFFF;
+            int cy = pt.Y & 0xFFFF;
+            lParams[i] = (IntPtr)((cy << 16) | cx);
+        }
+
+        for (int i = 0; i < hwnds.Count; i++)
+            Native.PostMessage(hwnds[i], Native.WM_MOUSEMOVE, IntPtr.Zero, lParams[i]);
+
+        IntPtr fg = Native.GetForegroundWindow();
+        bool roIsForeground = hwnds.Contains(fg);
+
+        Thread.Sleep(_rng.Next(2, 5));
+        for (int i = 0; i < hwnds.Count; i++)
+            Native.PostMessage(hwnds[i], Native.WM_LBUTTONDOWN, (IntPtr)Native.MK_LBUTTON, lParams[i]);
+        if (roIsForeground) TrySendInputMouseDown();
+
+        try { Thread.Sleep(clamped); }
+        finally
+        {
+            for (int i = 0; i < hwnds.Count; i++)
+                Native.PostMessage(hwnds[i], Native.WM_LBUTTONUP, IntPtr.Zero, lParams[i]);
+            if (roIsForeground) TrySendInputMouseUp();
+        }
+    }
+
+    private static void TrySendInputMouseDown()
+    {
+        try
+        {
+            var input = new Native.INPUT
+            {
+                type = 0, // INPUT_MOUSE
+                U = new Native.INPUTUNION
+                {
+                    mi = new Native.MOUSEINPUT
+                    {
+                        dx = 0,
+                        dy = 0,
+                        mouseData = 0,
+                        dwFlags = Native.MOUSEEVENTF_LEFTDOWN,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+            Native.SendInput(1, new[] { input }, Marshal.SizeOf<Native.INPUT>());
+        }
+        catch { }
+    }
+
+    private static void TrySendInputMouseUp()
+    {
+        try
+        {
+            var input = new Native.INPUT
+            {
+                type = 0,
+                U = new Native.INPUTUNION
+                {
+                    mi = new Native.MOUSEINPUT
+                    {
+                        dx = 0,
+                        dy = 0,
+                        mouseData = 0,
+                        dwFlags = Native.MOUSEEVENTF_LEFTUP,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+            Native.SendInput(1, new[] { input }, Marshal.SizeOf<Native.INPUT>());
+        }
+        catch { }
+    }
+
+    /// <summary>
     /// Fast background left click for high-speed skill spamming.
     /// Uses minimal random delays (2-8ms) instead of the default Gaussian delay.
     /// </summary>

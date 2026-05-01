@@ -129,6 +129,13 @@ namespace _4RTools.Model
         /// <summary>Click at cursor after each skill key to confirm targeting. Default on.</summary>
         public bool ClickActive { get; set; } = true;
 
+        /// <summary>
+        /// LMB hold duration (ms) for the click after each key. Lower = faster click cycle.
+        /// Range 5–200; default 30 matches MuhBot's proven timing. Affects only the LBUTTONDOWN→UP
+        /// gap, not the key→click gap (which is fixed by the move/jitter step inside ClickAt).
+        /// </summary>
+        public int ClickSpeedMs { get; set; } = 30;
+
         /// <summary>When true, holding the trigger auto-cycles through skill keys paced by <see cref="InterSkillDelayMs"/>.</summary>
         public bool LoopMode { get; set; }
 
@@ -633,6 +640,14 @@ namespace _4RTools.Model
         [JsonIgnore]
         private CancellationTokenSource _workerCts;
 
+        /// <summary>Per-slot autoclicker token. Created when trigger pressed + ClickActive, cancelled on release.</summary>
+        [JsonIgnore]
+        private CancellationTokenSource[] _autoclickerCts;
+
+        /// <summary>Per-slot autoclicker task. Loops LMB clicks at <see cref="AhkSlotConfig.ClickSpeedMs"/> while trigger held.</summary>
+        [JsonIgnore]
+        private Task[] _autoclickerTasks;
+
         /// <summary>Global send lock: serializes worker fires so concurrent PostMessage bursts don't stack.</summary>
         [JsonIgnore]
         private static readonly object _globalSendLock = new object();
@@ -863,6 +878,8 @@ namespace _4RTools.Model
 
             _slotSignals = new SemaphoreSlim[SLOT_COUNT];
             _slotWorkers = new Task[SLOT_COUNT];
+            _autoclickerCts = new CancellationTokenSource[SLOT_COUNT];
+            _autoclickerTasks = new Task[SLOT_COUNT];
             for (int i = 0; i < SLOT_COUNT; i++)
             {
                 _slotSignals[i] = new SemaphoreSlim(0, 1);
@@ -920,12 +937,22 @@ namespace _4RTools.Model
 
                 if (!isPressed)
                 {
+                    if (_wasDown[i]) StopAutoclicker(i);
                     _wasDown[i] = false;
                     slot.lastFireTicks = 0;
                     continue;
                 }
 
-                if (!_wasDown[i]) SpamLog.Write($"slot[{i}] trigger pressed (HasBinding={slot.HasBinding}, LoopMode={slot.LoopMode})");
+                if (!_wasDown[i]) SpamLog.Write($"slot[{i}] trigger pressed (HasBinding={slot.HasBinding}, LoopMode={slot.LoopMode}, ClickActive={slot.ClickActive})");
+
+                if (slot.ClickActive)
+                {
+                    StartAutoclickerIfNeeded(i, slot);
+                }
+                else
+                {
+                    StopAutoclicker(i);
+                }
 
                 if (slot.LoopMode)
                 {
@@ -1070,22 +1097,9 @@ namespace _4RTools.Model
                 roClient.input.SendKey(vk, true, ct);
             }
 
-            if (slot.ClickActive)
-            {
-                CursorClientPoint(roClient, out int cx, out int cy);
-                if (speedBoost)
-                {
-                    roClient.input.ClickAt(cx, cy);
-                }
-                else if (this.mouseFlick)
-                {
-                    roClient.input.ClickAtWithFlick(cx, cy);
-                }
-                else
-                {
-                    roClient.input.ClickAt(cx, cy);
-                }
-            }
+            // Click is now handled by the per-slot autoclicker thread (started/stopped from
+            // AHKThreadExecution based on trigger state + ClickActive). Decouples LMB pacing
+            // from key fires so it behaves like a true autoclicker while the trigger is held.
 
             if (this.noShift)
             {
@@ -1302,6 +1316,19 @@ namespace _4RTools.Model
                 catch (ObjectDisposedException) { }
             }
 
+            CancellationTokenSource[] acCts = _autoclickerCts;
+            if (acCts != null)
+            {
+                for (int i = 0; i < acCts.Length; i++)
+                {
+                    CancellationTokenSource c = acCts[i];
+                    if (c == null) continue;
+                    try { c.Cancel(); }
+                    catch (ObjectDisposedException) { }
+                    acCts[i] = null;
+                }
+            }
+
             SemaphoreSlim[] sigs = _slotSignals;
             if (sigs != null)
             {
@@ -1337,11 +1364,24 @@ namespace _4RTools.Model
                 catch (AggregateException) { /* OperationCanceledException is expected */ }
             }
 
+            Task[] acTasks = _autoclickerTasks;
+            if (acTasks != null)
+            {
+                try
+                {
+                    Task[] nonNull = acTasks.Where(t => t != null).ToArray();
+                    if (nonNull.Length > 0) Task.WaitAll(nonNull, 500);
+                }
+                catch (AggregateException) { }
+            }
+
             // Drop references; let GC clean up semaphores / CTS. Avoiding Dispose here prevents
             // ObjectDisposedException races if a worker missed cancellation.
             _workerCts = null;
             _slotSignals = null;
             _slotWorkers = null;
+            _autoclickerCts = null;
+            _autoclickerTasks = null;
 
             for (int i = 0; i < SLOT_COUNT; i++)
             {
@@ -1387,6 +1427,76 @@ namespace _4RTools.Model
             }
             catch (SemaphoreFullException) { /* coalesced: a pending fire is already queued */ }
             catch (ObjectDisposedException) { /* raced with Stop — ignore */ }
+        }
+
+        /// <summary>
+        /// Starts the autoclicker task for <paramref name="slotIndex"/> if it isn't already running.
+        /// Loops left-mouse-button clicks at <see cref="AhkSlotConfig.ClickSpeedMs"/> while the
+        /// slot's trigger is held. Cancelled by <see cref="StopAutoclicker"/> on release / Stop().
+        /// </summary>
+        private void StartAutoclickerIfNeeded(int slotIndex, AhkSlotConfig slot)
+        {
+            CancellationTokenSource[] ctsArr = _autoclickerCts;
+            Task[] tasks = _autoclickerTasks;
+            if (ctsArr == null || tasks == null) return;
+            if (slotIndex < 0 || slotIndex >= ctsArr.Length) return;
+
+            if (ctsArr[slotIndex] != null && !ctsArr[slotIndex].IsCancellationRequested)
+                return; // already running
+
+            var cts = new CancellationTokenSource();
+            ctsArr[slotIndex] = cts;
+            int captured = slotIndex;
+            tasks[slotIndex] = Task.Run(() => AutoclickerLoop(captured, cts.Token), cts.Token);
+            SpamLog.Write($"autoclicker[{slotIndex}] started (interval={slot.ClickSpeedMs}ms)");
+        }
+
+        /// <summary>Cancels the autoclicker task for <paramref name="slotIndex"/> if running.</summary>
+        private void StopAutoclicker(int slotIndex)
+        {
+            CancellationTokenSource[] ctsArr = _autoclickerCts;
+            if (ctsArr == null || slotIndex < 0 || slotIndex >= ctsArr.Length) return;
+
+            CancellationTokenSource cts = ctsArr[slotIndex];
+            if (cts == null) return;
+
+            try { cts.Cancel(); }
+            catch (ObjectDisposedException) { }
+
+            ctsArr[slotIndex] = null;
+            SpamLog.Write($"autoclicker[{slotIndex}] stopped");
+        }
+
+        /// <summary>
+        /// Autoclicker body: while not cancelled, send one LMB click and sleep
+        /// <see cref="AhkSlotConfig.ClickSpeedMs"/>. Re-reads slot config each cycle so the user
+        /// can tune speed live without restarting.
+        /// </summary>
+        private void AutoclickerLoop(int slotIndex, CancellationToken ct)
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested && !_stopped)
+                {
+                    if (slotIndex >= this.Slots.Count) return;
+                    AhkSlotConfig slot = this.Slots[slotIndex];
+                    if (slot == null || !slot.ClickActive) return;
+
+                    Client roClient = ClientSingleton.GetClient();
+                    if (roClient?.input == null) return;
+
+                    Native.GetCursorPos(out Native.POINT screenPt);
+                    roClient.input.SendClickWithHold(screenPt.X, screenPt.Y, slot.ClickSpeedMs);
+
+                    int interval = Math.Max(5, Math.Min(2000, slot.ClickSpeedMs));
+                    if (ct.WaitHandle.WaitOne(interval)) return;
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                SpamLog.Write($"autoclicker[{slotIndex}] error: {ex.Message}");
+            }
         }
 
         /// <summary>
