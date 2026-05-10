@@ -772,6 +772,7 @@ namespace _4RTools.Forms
             private readonly NumericUpDown nudClickSpeed;
             private readonly Label lblClickSpeed;
             private readonly CheckBox chkLoopMode;
+            private readonly CheckBox chkAllowDuplicates;
             private readonly CheckBox chkMinHp;
             private readonly NumericUpDown nudMinHp;
             private readonly CheckBox chkMaxHp;
@@ -806,10 +807,13 @@ namespace _4RTools.Forms
                             Shift = b?.Shift ?? false
                         };
 
-                        string signature = copy.BuildSignature();
-                        if (!string.IsNullOrEmpty(signature) && !seenBindings.Add(signature))
+                        if (!current.AllowDuplicateKeys)
                         {
-                            continue;
+                            string signature = copy.BuildSignature();
+                            if (!string.IsNullOrEmpty(signature) && !seenBindings.Add(signature))
+                            {
+                                continue;
+                            }
                         }
 
                         this.workingSkillBindings.Add(copy);
@@ -847,7 +851,7 @@ namespace _4RTools.Forms
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(392, 464);
+                this.ClientSize = new Size(392, 488);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
@@ -1011,18 +1015,27 @@ namespace _4RTools.Forms
                 };
                 this.chkLoopMode.Checked = current.LoopMode;
 
+                this.chkAllowDuplicates = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 320),
+                    Text = "Allow duplicate keys in chain (e.g. Q Q W Q)"
+                };
+                this.chkAllowDuplicates.Checked = current.AllowDuplicateKeys;
+                this.chkAllowDuplicates.CheckedChanged += (_, __) => this.RefreshDisplays();
+
                 // ── Resource gates (Tier 3B) ────────────────────────────
                 this.chkMinHp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 326),
+                    Location = new Point(12, 350),
                     Text = "Only fire if HP \u2265"
                 };
                 this.chkMinHp.Checked = current.MinHpPercent.HasValue;
 
                 this.nudMinHp = new NumericUpDown
                 {
-                    Location = new Point(190, 324),
+                    Location = new Point(190, 348),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1033,7 +1046,7 @@ namespace _4RTools.Forms
                 Label lblMinHpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 326),
+                    Location = new Point(248, 350),
                     Text = "%"
                 };
                 this.chkMinHp.CheckedChanged += (_, __) => this.nudMinHp.Enabled = this.chkMinHp.Checked;
@@ -1041,14 +1054,14 @@ namespace _4RTools.Forms
                 this.chkMaxHp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 352),
+                    Location = new Point(12, 376),
                     Text = "Only fire if HP \u2264"
                 };
                 this.chkMaxHp.Checked = current.MaxHpPercent.HasValue;
 
                 this.nudMaxHp = new NumericUpDown
                 {
-                    Location = new Point(190, 350),
+                    Location = new Point(190, 374),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1059,7 +1072,7 @@ namespace _4RTools.Forms
                 Label lblMaxHpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 352),
+                    Location = new Point(248, 376),
                     Text = "%"
                 };
                 this.chkMaxHp.CheckedChanged += (_, __) => this.nudMaxHp.Enabled = this.chkMaxHp.Checked;
@@ -1067,14 +1080,14 @@ namespace _4RTools.Forms
                 this.chkMinSp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 378),
+                    Location = new Point(12, 402),
                     Text = "Only fire if SP \u2265"
                 };
                 this.chkMinSp.Checked = current.MinSpPercent.HasValue;
 
                 this.nudMinSp = new NumericUpDown
                 {
-                    Location = new Point(190, 376),
+                    Location = new Point(190, 400),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1085,7 +1098,7 @@ namespace _4RTools.Forms
                 Label lblMinSpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 378),
+                    Location = new Point(248, 402),
                     Text = "%"
                 };
                 this.chkMinSp.CheckedChanged += (_, __) => this.nudMinSp.Enabled = this.chkMinSp.Checked;
@@ -1093,7 +1106,7 @@ namespace _4RTools.Forms
                 this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 402),
+                    Location = new Point(12, 426),
                     Size = new Size(368, 18),
                     ForeColor = System.Drawing.SystemColors.GrayText,
                     Text = ""
@@ -1102,7 +1115,7 @@ namespace _4RTools.Forms
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(12, 430),
+                    Location = new Point(12, 454),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -1110,14 +1123,14 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(230, 430),
+                    Location = new Point(230, 454),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
                 this.btnOk = new Button
                 {
-                    Location = new Point(310, 430),
+                    Location = new Point(310, 454),
                     Size = new Size(70, 24),
                     Text = "OK"
                 };
@@ -1152,6 +1165,7 @@ namespace _4RTools.Forms
                 this.Controls.Add(this.nudClickSpeed);
                 this.Controls.Add(this.lblClickSpeed);
                 this.Controls.Add(this.chkLoopMode);
+                this.Controls.Add(this.chkAllowDuplicates);
                 this.Controls.Add(this.lblStatus);
                 this.Controls.Add(btnClear);
                 this.Controls.Add(btnCancel);
@@ -1198,6 +1212,7 @@ namespace _4RTools.Forms
                 slot.ClickActive = this.chkClickActive.Checked;
                 slot.ClickSpeedMs = (int)this.nudClickSpeed.Value;
                 slot.LoopMode = this.chkLoopMode.Checked;
+                slot.AllowDuplicateKeys = this.chkAllowDuplicates.Checked;
                 slot.MinHpPercent = this.chkMinHp.Checked ? (int?)(int)this.nudMinHp.Value : null;
                 slot.MaxHpPercent = this.chkMaxHp.Checked ? (int?)(int)this.nudMaxHp.Value : null;
                 slot.MinSpPercent = this.chkMinSp.Checked ? (int?)(int)this.nudMinSp.Value : null;
@@ -1270,7 +1285,9 @@ namespace _4RTools.Forms
                 this.RefreshPerKeyDelayControl();
 
                 this.listenMode = ListenMode.None;
-                this.lblStatus.Text = "Each exact key combo can appear only once per cycle.";
+                this.lblStatus.Text = (this.chkAllowDuplicates != null && this.chkAllowDuplicates.Checked)
+                    ? "Duplicate keys allowed. Per-key delay applies to all copies of the same combo."
+                    : "Each exact key combo can appear only once per cycle.";
             }
 
             private void RepopulateSkillList()
@@ -1421,14 +1438,17 @@ namespace _4RTools.Forms
                         Shift = shift
                     };
 
-                    int duplicateIndex = FindDuplicateSkillBindingIndex(candidate);
-                    if (duplicateIndex >= 0)
+                    if (!this.chkAllowDuplicates.Checked)
                     {
-                        this.listenMode = ListenMode.None;
-                        this.listSkills.SelectedIndex = duplicateIndex;
-                        this.lblStatus.Text = "That key combo is already in the chain. It will not be added twice in one cycle.";
-                        e.SuppressKeyPress = true;
-                        return;
+                        int duplicateIndex = FindDuplicateSkillBindingIndex(candidate);
+                        if (duplicateIndex >= 0)
+                        {
+                            this.listenMode = ListenMode.None;
+                            this.listSkills.SelectedIndex = duplicateIndex;
+                            this.lblStatus.Text = "That key combo is already in the chain. Enable 'Allow duplicate keys' to add it again.";
+                            e.SuppressKeyPress = true;
+                            return;
+                        }
                     }
 
                     this.workingSkillBindings.Add(candidate);
@@ -1474,6 +1494,7 @@ namespace _4RTools.Forms
 
             private List<AhkSkillBinding> GetDistinctWorkingSkillBindings()
             {
+                bool allowDup = this.chkAllowDuplicates != null && this.chkAllowDuplicates.Checked;
                 List<AhkSkillBinding> result = new List<AhkSkillBinding>();
                 HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -1485,7 +1506,11 @@ namespace _4RTools.Forms
                     }
 
                     string signature = binding.BuildSignature();
-                    if (string.IsNullOrEmpty(signature) || !seen.Add(signature))
+                    if (string.IsNullOrEmpty(signature))
+                    {
+                        continue;
+                    }
+                    if (!allowDup && !seen.Add(signature))
                     {
                         continue;
                     }

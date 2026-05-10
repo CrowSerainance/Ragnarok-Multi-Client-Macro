@@ -140,6 +140,14 @@ namespace _4RTools.Model
         public bool LoopMode { get; set; }
 
         /// <summary>
+        /// When true, the Bind Slot dialog allows the same exact key combo to appear multiple times
+        /// in the chain. Default false preserves the original "one combo per cycle" guard.
+        /// Per-key delay override is keyed by signature, so all copies of the same combo share the
+        /// same override value (intentional — same chord = same aftercast).
+        /// </summary>
+        public bool AllowDuplicateKeys { get; set; }
+
+        /// <summary>
         /// Optional minimum HP% for fire (1–100). null = no lower-bound gate.
         /// Use case: don't waste keystrokes when HP is dangerously low (let a heal slot take priority).
         /// </summary>
@@ -302,7 +310,10 @@ namespace _4RTools.Model
             // Keep SkillKeys in sync from SkillBindings for backward compat.
             if (this.SkillBindings.Count > 0)
             {
-                this.SkillBindings = DeduplicateSkillBindings(this.SkillBindings);
+                if (!this.AllowDuplicateKeys)
+                {
+                    this.SkillBindings = DeduplicateSkillBindings(this.SkillBindings);
+                }
                 this.SkillKeys = this.SkillBindings
                     .Where(b => b.ParseKey() != FormsKeys.None)
                     .Select(b => b.Key)
@@ -347,7 +358,9 @@ namespace _4RTools.Model
         {
             if (this.SkillBindings != null && this.SkillBindings.Count > 0)
             {
-                return DeduplicateSkillBindings(this.SkillBindings);
+                return this.AllowDuplicateKeys
+                    ? new List<AhkSkillBinding>(this.SkillBindings)
+                    : DeduplicateSkillBindings(this.SkillBindings);
             }
 
             // Fallback to plain SkillKeys (no modifiers).
