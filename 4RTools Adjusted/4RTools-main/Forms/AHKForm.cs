@@ -772,6 +772,7 @@ namespace _4RTools.Forms
             private readonly NumericUpDown nudClickSpeed;
             private readonly Label lblClickSpeed;
             private readonly CheckBox chkLoopMode;
+            private readonly CheckBox chkAutoRun;
             private readonly CheckBox chkAllowDuplicates;
             private readonly CheckBox chkMinHp;
             private readonly NumericUpDown nudMinHp;
@@ -851,7 +852,7 @@ namespace _4RTools.Forms
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
-                this.ClientSize = new Size(392, 488);
+                this.ClientSize = new Size(392, 510);
                 this.KeyPreview = true;
                 this.ShowInTaskbar = false;
 
@@ -1015,27 +1016,51 @@ namespace _4RTools.Forms
                 };
                 this.chkLoopMode.Checked = current.LoopMode;
 
-                this.chkAllowDuplicates = new CheckBox
+                this.chkAutoRun = new CheckBox
                 {
                     AutoSize = true,
                     Location = new Point(12, 320),
+                    Text = "Auto-run full chain on one press (no hold needed)"
+                };
+                this.chkAutoRun.Checked = current.AutoRunOnPress && !current.LoopMode;
+
+                this.chkAllowDuplicates = new CheckBox
+                {
+                    AutoSize = true,
+                    Location = new Point(12, 342),
                     Text = "Allow duplicate keys in chain (e.g. Q Q W Q)"
                 };
                 this.chkAllowDuplicates.Checked = current.AllowDuplicateKeys;
                 this.chkAllowDuplicates.CheckedChanged += (_, __) => this.RefreshDisplays();
 
+                // Mutually exclusive: holding-loop vs single-press auto-run.
+                this.chkLoopMode.CheckedChanged += (_, __) =>
+                {
+                    if (this.chkLoopMode.Checked && this.chkAutoRun.Checked)
+                    {
+                        this.chkAutoRun.Checked = false;
+                    }
+                };
+                this.chkAutoRun.CheckedChanged += (_, __) =>
+                {
+                    if (this.chkAutoRun.Checked && this.chkLoopMode.Checked)
+                    {
+                        this.chkLoopMode.Checked = false;
+                    }
+                };
+
                 // ── Resource gates (Tier 3B) ────────────────────────────
                 this.chkMinHp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 350),
+                    Location = new Point(12, 372),
                     Text = "Only fire if HP \u2265"
                 };
                 this.chkMinHp.Checked = current.MinHpPercent.HasValue;
 
                 this.nudMinHp = new NumericUpDown
                 {
-                    Location = new Point(190, 348),
+                    Location = new Point(190, 370),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1046,7 +1071,7 @@ namespace _4RTools.Forms
                 Label lblMinHpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 350),
+                    Location = new Point(248, 372),
                     Text = "%"
                 };
                 this.chkMinHp.CheckedChanged += (_, __) => this.nudMinHp.Enabled = this.chkMinHp.Checked;
@@ -1054,14 +1079,14 @@ namespace _4RTools.Forms
                 this.chkMaxHp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 376),
+                    Location = new Point(12, 398),
                     Text = "Only fire if HP \u2264"
                 };
                 this.chkMaxHp.Checked = current.MaxHpPercent.HasValue;
 
                 this.nudMaxHp = new NumericUpDown
                 {
-                    Location = new Point(190, 374),
+                    Location = new Point(190, 396),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1072,7 +1097,7 @@ namespace _4RTools.Forms
                 Label lblMaxHpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 376),
+                    Location = new Point(248, 398),
                     Text = "%"
                 };
                 this.chkMaxHp.CheckedChanged += (_, __) => this.nudMaxHp.Enabled = this.chkMaxHp.Checked;
@@ -1080,14 +1105,14 @@ namespace _4RTools.Forms
                 this.chkMinSp = new CheckBox
                 {
                     AutoSize = true,
-                    Location = new Point(12, 402),
+                    Location = new Point(12, 424),
                     Text = "Only fire if SP \u2265"
                 };
                 this.chkMinSp.Checked = current.MinSpPercent.HasValue;
 
                 this.nudMinSp = new NumericUpDown
                 {
-                    Location = new Point(190, 400),
+                    Location = new Point(190, 422),
                     Size = new Size(52, 22),
                     Minimum = 1,
                     Maximum = 100,
@@ -1098,7 +1123,7 @@ namespace _4RTools.Forms
                 Label lblMinSpPct = new Label
                 {
                     AutoSize = true,
-                    Location = new Point(248, 402),
+                    Location = new Point(248, 424),
                     Text = "%"
                 };
                 this.chkMinSp.CheckedChanged += (_, __) => this.nudMinSp.Enabled = this.chkMinSp.Checked;
@@ -1106,7 +1131,7 @@ namespace _4RTools.Forms
                 this.lblStatus = new Label
                 {
                     AutoSize = false,
-                    Location = new Point(12, 426),
+                    Location = new Point(12, 448),
                     Size = new Size(368, 18),
                     ForeColor = System.Drawing.SystemColors.GrayText,
                     Text = ""
@@ -1115,7 +1140,7 @@ namespace _4RTools.Forms
                 Button btnClear = new Button
                 {
                     DialogResult = DialogResult.Abort,
-                    Location = new Point(12, 454),
+                    Location = new Point(12, 476),
                     Size = new Size(70, 24),
                     Text = "Clear"
                 };
@@ -1123,14 +1148,14 @@ namespace _4RTools.Forms
                 Button btnCancel = new Button
                 {
                     DialogResult = DialogResult.Cancel,
-                    Location = new Point(230, 454),
+                    Location = new Point(230, 476),
                     Size = new Size(70, 24),
                     Text = "Cancel"
                 };
 
                 this.btnOk = new Button
                 {
-                    Location = new Point(310, 454),
+                    Location = new Point(310, 476),
                     Size = new Size(70, 24),
                     Text = "OK"
                 };
@@ -1165,6 +1190,7 @@ namespace _4RTools.Forms
                 this.Controls.Add(this.nudClickSpeed);
                 this.Controls.Add(this.lblClickSpeed);
                 this.Controls.Add(this.chkLoopMode);
+                this.Controls.Add(this.chkAutoRun);
                 this.Controls.Add(this.chkAllowDuplicates);
                 this.Controls.Add(this.lblStatus);
                 this.Controls.Add(btnClear);
@@ -1212,6 +1238,7 @@ namespace _4RTools.Forms
                 slot.ClickActive = this.chkClickActive.Checked;
                 slot.ClickSpeedMs = (int)this.nudClickSpeed.Value;
                 slot.LoopMode = this.chkLoopMode.Checked;
+                slot.AutoRunOnPress = this.chkAutoRun.Checked && !this.chkLoopMode.Checked;
                 slot.AllowDuplicateKeys = this.chkAllowDuplicates.Checked;
                 slot.MinHpPercent = this.chkMinHp.Checked ? (int?)(int)this.nudMinHp.Value : null;
                 slot.MaxHpPercent = this.chkMaxHp.Checked ? (int?)(int)this.nudMaxHp.Value : null;

@@ -140,6 +140,13 @@ namespace _4RTools.Model
         public bool LoopMode { get; set; }
 
         /// <summary>
+        /// When true, a single trigger press runs the full chain on its own (paced by
+        /// <see cref="InterSkillDelayMs"/> / per-key override), then stops until the next press.
+        /// Mutually exclusive with <see cref="LoopMode"/>; if both are set, LoopMode wins.
+        /// </summary>
+        public bool AutoRunOnPress { get; set; }
+
+        /// <summary>
         /// When true, the Bind Slot dialog allows the same exact key combo to appear multiple times
         /// in the chain. Default false preserves the original "one combo per cycle" guard.
         /// Per-key delay override is keyed by signature, so all copies of the same combo share the
@@ -1093,6 +1100,41 @@ namespace _4RTools.Model
             Debug.WriteLine($"[AHK] Slot {slot.SlotId} fired step {fireIndex + 1}/{resolved.Count} (key={key?.Key})");
         }
 
+        /// <summary>
+        /// AutoRunOnPress: fires every key in the resolved chain back-to-back, paced by the per-key
+        /// delay override (or slot default). One trigger press = full pass through the chain, then stop.
+        /// Resets <see cref="AhkSlotConfig.currentStep"/> at start so each press begins at the first key.
+        /// Bails on <c>_stopped</c> / cancellation between keys.
+        /// </summary>
+        private void RunFullChain(Client roClient, AhkSlotConfig slot, CancellationToken ct)
+        {
+            List<AhkSkillBinding> resolved = slot.GetResolvedSkillBindings();
+            if (resolved.Count == 0) return;
+
+            slot.currentStep = 0;
+            for (int n = 0; n < resolved.Count; n++)
+            {
+                if (this._stopped || ct.IsCancellationRequested) return;
+
+                AhkSkillBinding fired = resolved[n];
+
+                lock (_globalSendLock)
+                {
+                    if (_stopped || ct.IsCancellationRequested) return;
+                    ApplyGlobalThrottle();
+                    FireCurrentStepKey(roClient, slot, ct);
+                    _lastGlobalSendTick = Environment.TickCount;
+                }
+
+                if (n < resolved.Count - 1)
+                {
+                    int delay = slot.GetDelayForBinding(fired);
+                    SleepWhileRunning(delay);
+                    if (ct.IsCancellationRequested) return;
+                }
+            }
+        }
+
         /// <summary>Matches stock <c>FireOnceWithClick</c> / <c>FireOnceSpeedBoost</c> / <c>FireOnceKeyOnly</c> behavior.</summary>
         private void FireVanillaSkillStep(Client roClient, AhkSlotConfig slot, AhkSkillBinding binding, int vk, bool speedBoost, CancellationToken ct = default)
         {
@@ -1556,16 +1598,24 @@ namespace _4RTools.Model
                     continue;
                 }
 
-                lock (_globalSendLock)
+                if (slot.AutoRunOnPress && !slot.LoopMode)
                 {
-                    if (_stopped || ct.IsCancellationRequested) return;
+                    SpamLog.Write($"worker[{slotIndex}] auto-running full chain");
+                    RunFullChain(roClient, slot, ct);
+                }
+                else
+                {
+                    lock (_globalSendLock)
+                    {
+                        if (_stopped || ct.IsCancellationRequested) return;
 
-                    ApplyGlobalThrottle();
+                        ApplyGlobalThrottle();
 
-                    SpamLog.Write($"worker[{slotIndex}] firing key");
-                    FireCurrentStepKey(roClient, slot, ct);
+                        SpamLog.Write($"worker[{slotIndex}] firing key");
+                        FireCurrentStepKey(roClient, slot, ct);
 
-                    _lastGlobalSendTick = Environment.TickCount;
+                        _lastGlobalSendTick = Environment.TickCount;
+                    }
                 }
             }
         }
