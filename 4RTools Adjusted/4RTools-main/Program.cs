@@ -16,7 +16,7 @@ namespace _4RTools
                 System.Windows.Forms.UnhandledExceptionMode.CatchException);
             System.Windows.Forms.Application.ThreadException += (s, e) =>
             {
-                System.IO.File.WriteAllText("crash.log",
+                System.IO.File.WriteAllText($"crash-{System.Diagnostics.Process.GetCurrentProcess().Id}.log",
                     $"[ThreadException] {DateTime.Now}\n{e.Exception}");
                 System.Windows.Forms.MessageBox.Show(
                     e.Exception.ToString(), "4RTools Crash",
@@ -25,7 +25,7 @@ namespace _4RTools
             };
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                System.IO.File.WriteAllText("crash.log",
+                System.IO.File.WriteAllText($"crash-{System.Diagnostics.Process.GetCurrentProcess().Id}.log",
                     $"[UnhandledException] {DateTime.Now}\n{e.ExceptionObject}");
                 System.Windows.Forms.MessageBox.Show(
                     e.ExceptionObject.ToString(), "4RTools Crash",

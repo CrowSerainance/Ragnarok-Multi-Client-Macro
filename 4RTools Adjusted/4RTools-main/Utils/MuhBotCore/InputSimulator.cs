@@ -1254,7 +1254,10 @@ public class InputSimulator
 internal static class DiagLog
 {
     private static readonly object _lock = new object();
-    private static readonly string _path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "4rtools-spam.log");
+    // Per-PID so multiple 4RTools instances don't race the same log file.
+    private static readonly string _path = System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"4rtools-spam-{System.Diagnostics.Process.GetCurrentProcess().Id}.log");
 
     public static void Write(string msg)
     {

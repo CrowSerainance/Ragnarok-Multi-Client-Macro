@@ -52,8 +52,7 @@ namespace _4RTools.Model
         private static void OverwriteLocalFile(List<ClientDTO> clients)
         {
             string output = JsonConvert.SerializeObject(clients, Formatting.Indented);
-            File.WriteAllText(localServerName, string.Empty);
-            File.WriteAllText(localServerName, output);
+            Utils.AppConfig.AtomicWriteAllText(localServerName, output);
         }
 
 

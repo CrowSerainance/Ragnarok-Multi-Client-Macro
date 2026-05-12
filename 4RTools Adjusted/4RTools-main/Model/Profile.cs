@@ -274,7 +274,7 @@ namespace _4RTools.Model
             root["Name"] = profileName;
 
             string output = JsonConvert.SerializeObject(root, Formatting.Indented);
-            File.WriteAllText(filePath, output);
+            Utils.AppConfig.AtomicWriteAllText(filePath, output);
             VerifySavedProfile(filePath, profileName);
         }
 
@@ -438,7 +438,7 @@ namespace _4RTools.Model
                 JObject root = ReadProfileRoot(filePath, profileName, createIfMissing: true);
                 root["Name"] = profileName;
                 string output = JsonConvert.SerializeObject(root, Formatting.Indented);
-                File.WriteAllText(filePath, output);
+                Utils.AppConfig.AtomicWriteAllText(filePath, output);
             }
             catch (Exception ex)
             {

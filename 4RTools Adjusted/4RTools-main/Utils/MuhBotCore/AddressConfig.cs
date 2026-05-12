@@ -188,6 +188,6 @@ public class AddressConfig
     public void Save(string path = null)
     {
         path = path ?? DefaultPath;
-        File.WriteAllText(path, JsonConvert.SerializeObject(this, Formatting.Indented));
+        _4RTools.Utils.AppConfig.AtomicWriteAllText(path, JsonConvert.SerializeObject(this, Formatting.Indented));
     }
 }

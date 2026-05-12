@@ -47,5 +47,42 @@ namespace _4RTools.Utils
                 Directory.CreateDirectory(directory);
             }
         }
+
+        /// <summary>
+        /// Safer drop-in for <see cref="File.WriteAllText(string, string)"/> when several 4RTools
+        /// instances may write the same path concurrently. Writes to a sibling temp file then
+        /// atomically swaps it in via <see cref="File.Replace"/>, which avoids the half-written /
+        /// truncated states that a raw WriteAllText leaves if two processes race.
+        /// </summary>
+        public static void AtomicWriteAllText(string filePath, string contents)
+        {
+            string dir = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            // PID-suffixed temp keeps two concurrent writers from clobbering each other's staging file.
+            string tmp = filePath + "." + System.Diagnostics.Process.GetCurrentProcess().Id + ".tmp";
+
+            try
+            {
+                File.WriteAllText(tmp, contents);
+
+                if (File.Exists(filePath))
+                {
+                    // File.Replace is atomic on NTFS and preserves the destination ACLs.
+                    File.Replace(tmp, filePath, null);
+                }
+                else
+                {
+                    File.Move(tmp, filePath);
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+            }
+        }
     }
 }

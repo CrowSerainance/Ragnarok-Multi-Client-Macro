@@ -199,7 +199,7 @@ namespace _4RTools.Forms
                 currentProfile = selected;
                 Console.WriteLine($"[profileCB_SelectedIndexChanged] Loaded OK. AHK slot[0] trigger: {ProfileSingleton.GetCurrent()?.AHK?.Slots?[0]?.TriggerKey}");
 
-                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                try { Utils.AppConfig.AtomicWriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }
             }
             catch (Exception ex)
@@ -222,7 +222,7 @@ namespace _4RTools.Forms
                 subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
                 currentProfile = selected;
 
-                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                try { Utils.AppConfig.AtomicWriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }
             }
             catch (Exception ex)
@@ -247,7 +247,7 @@ namespace _4RTools.Forms
 
                 subject.Notify(new Utils.Message(MessageCode.PROFILE_CHANGED, null));
 
-                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                try { Utils.AppConfig.AtomicWriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }
             }
             catch (Exception ex)
@@ -274,7 +274,7 @@ namespace _4RTools.Forms
                 AppConfig.EnsureProfileDirectory();
                 if (!File.Exists(path))
                 {
-                    File.WriteAllText(path, "{}");
+                    Utils.AppConfig.AtomicWriteAllText(path, "{}");
                 }
 
                 current.Name = selected;
@@ -288,7 +288,7 @@ namespace _4RTools.Forms
                 ProfileSingleton.PersistAllConfiguration();
                 currentProfile = selected;
 
-                try { System.IO.File.WriteAllText(LastProfileFile, currentProfile); }
+                try { Utils.AppConfig.AtomicWriteAllText(LastProfileFile, currentProfile); }
                 catch { /* non-critical */ }
 
                 MessageBox.Show($"Profile \"{selected}\" saved.",
